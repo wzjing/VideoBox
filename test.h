@@ -5,8 +5,6 @@
 #ifndef VIDEOBOX_TEST_H
 #define VIDEOBOX_TEST_H
 
-#include <libavutil/frame.h>
-
-int create_snapshot(char * filename);
+int create_snapshot(char *filename);
 
 #endif //VIDEOBOX_TEST_H

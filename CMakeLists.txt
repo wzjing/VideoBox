@@ -1,13 +1,17 @@
 cmake_minimum_required(VERSION 3.10)
-project(VideoBox C)
+project(VideoBox)
 
-set(CMAKE_C_STANDARD 99)
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_COMPILER "/usr/bin/clang++")
+set(CMAKE_C_COMPILER "/usr/bin/clang")
 
-link_directories(${CMAKE_SOURCE_DIR}/libs/ffmpeg/lib)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -w")
 
-include_directories(${CMAKE_SOURCE_DIR}/libs/ffmpeg/include)
+link_directories(${CMAKE_SOURCE_DIR}/libs/ffmpeg/lib ${CMAKE_SOURCE_DIR}/libs/x264/lib)
 
-add_executable(VideoBox main.c test.h test.c)
+include_directories(${CMAKE_SOURCE_DIR}/libs/ffmpeg/include ${CMAKE_SOURCE_DIR}/libs/x264/include)
+
+add_executable(VideoBox main.cpp test.h test.cpp)
 
 target_link_libraries(VideoBox
         avdevice
@@ -16,10 +20,13 @@ target_link_libraries(VideoBox
         avcodec
         swscale
         swresample
+        postproc
         avutil
+        x264
         pthread
         bsd
         c
         z
         m
+        dl
         )
