@@ -5,6 +5,10 @@
 #ifndef VIDEOBOX_DEMUXING_H
 #define VIDEOBOX_DEMUXING_H
 
-int demuxing(const char *filename, const char *video_name, const char *audio_name);
+#include <libavformat/avformat.h>
+
+typedef void (*DEMUX_CALLBACK)(AVPacket * packet, enum AVMediaType type);
+
+int demux(const char *filename, DEMUX_CALLBACK cb);
 
 #endif //VIDEOBOX_DEMUXING_H

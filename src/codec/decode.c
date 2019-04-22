@@ -20,18 +20,6 @@ int dst_linesize[4];
 
 int byte_per_pixel = -1;
 
-static void pgm_save(unsigned char *buf, int wrap, int xsize, int ysize,
-                     char *filename) {
-  FILE *f;
-  int i;
-
-  f = fopen(filename, "w");
-  fprintf(f, "P5\n%d %d\n%d\n", xsize, ysize, 255);
-  for (i = 0; i < ysize; i++)
-    fwrite(buf + i * wrap, 1, xsize, f);
-  fclose(f);
-}
-
 static void ppm_save(AVFrame *src, char *filename) {
 
   if (byte_per_pixel == -1) {
@@ -68,25 +56,6 @@ static void ppm_save(AVFrame *src, char *filename) {
 
   av_freep(&dst_data);
   memset(dst_linesize, 0, sizeof(dst_linesize));
-}
-
-static void yuv_save(AVFrame *frame, const char *filename) {
-  FILE *f;
-  f = fopen(filename, "w");
-
-  for (int i = 0; i < frame->height; i++) {
-    fwrite(frame->data[0] + frame->linesize[0] * i, 1, frame->width, f);
-  }
-
-  for (int i = 0; i < frame->height / 2; i++) {
-    fwrite(frame->data[1] + frame->linesize[1] * i, 1, frame->width / 2, f);
-  }
-
-  for (int i = 0; i < frame->height; i++) {
-    fwrite(frame->data[2] + frame->linesize[2] * i, 1, frame->width / 2, f);
-  }
-
-  fclose(f);
 }
 
 static void decode_packet(AVCodecContext *dec_ctx, AVFrame *frame, AVPacket *pkt, const char *filename) {

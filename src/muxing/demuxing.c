@@ -9,7 +9,7 @@
 #include <libavutil/imgutils.h>
 #include <libavutil/samplefmt.h>
 #include <libavutil/timestamp.h>
-#include <libavformat/avformat.h>
+
 
 static AVFormatContext *fmt_ctx = NULL;
 static AVCodecContext *video_dec_ctx = NULL, *audio_dec_ctx;
@@ -95,20 +95,20 @@ static int decode_packet(int *got_frame, int cached) {
 }
 
 static int open_codec_context(int *stream_idx, AVCodecContext **dec_ctx,
-                              AVFormatContext *fmt_ctx, enum AVMediaType type) {
+                              AVFormatContext *av_fmt_ctx, enum AVMediaType type) {
   int ret, stream_index;
   AVStream *st;
   AVCodec *dec = NULL;
   AVDictionary *opts = NULL;
 
-  ret = av_find_best_stream(fmt_ctx, type, -1, -1, NULL, 0);
+  ret = av_find_best_stream(av_fmt_ctx, type, -1, -1, NULL, 0);
   if (ret < 0) {
     fprintf(stderr, "Could not find %s stream in input file '%s'\n",
             av_get_media_type_string(type), src_filename);
     return ret;
   } else {
     stream_index = ret;
-    st = fmt_ctx->streams[stream_index];
+    st = av_fmt_ctx->streams[stream_index];
 
     /* find decoder for the stream */
     dec = avcodec_find_decoder(st->codecpar->codec_id);
@@ -133,7 +133,9 @@ static int open_codec_context(int *stream_idx, AVCodecContext **dec_ctx,
       return ret;
     }
 
-    /* Init the decoders, with or without reference counting */
+    // if reference counting is set to non-zero, the return value of av_decode_video2() and av_decode_audio4()
+    // is always valid before you call av_frame_unref(), otherwise, they are only valid before you call next
+    // decode method.
     av_dict_set(&opts, "refcounted_frames", refcount ? "1" : "0", 0);
     if ((ret = avcodec_open2(*dec_ctx, dec, &opts)) < 0) {
       fprintf(stderr, "Failed to open %s codec\n",
@@ -173,24 +175,25 @@ static int get_format_from_sample_fmt(const char **fmt, enum AVSampleFormat samp
   return -1;
 }
 
-int demuxing(const char *filename, const char *video_name, const char *audio_name) {
+int demux(const char *filename, DEMUX_CALLBACK cb) {
 
   int ret = 0, got_frame;
 
   src_filename = filename;
-  video_dst_filename = video_name;
-  audio_dst_filename = audio_name;
 
+  // open file
   if (avformat_open_input(&fmt_ctx, src_filename, NULL, NULL) < 0) {
     fprintf(stderr, "Could not open source file %s\n", src_filename);
     exit(1);
   }
 
+  // get video stream info
   if (avformat_find_stream_info(fmt_ctx, NULL) < 0) {
     fprintf(stderr, "Could not find stream information\n");
     exit(1);
   }
 
+  // get decode context
   if (open_codec_context(&video_stream_idx, &video_dec_ctx, fmt_ctx, AVMEDIA_TYPE_VIDEO) >= 0) {
     video_stream = fmt_ctx->streams[video_stream_idx];
 
@@ -221,6 +224,10 @@ int demuxing(const char *filename, const char *video_name, const char *audio_nam
       goto end;
     }
   }
+
+  int sub_idx;
+
+  if (open_codec_context(&sub_idx, &audio_dec_ctx, fmt_ctx, AVMEDIA_TYPE_ATTACHMENT))
 
   av_dump_format(fmt_ctx, 0, src_filename, 0);
 

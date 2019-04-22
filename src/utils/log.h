@@ -7,12 +7,12 @@
 
 #include <stdio.h>
 
-#define LOG(format, ...) printf(format, ## __VARARGS__)
+#define LOG(format, ...) printf(format, ## __VA_ARGS__)
 #ifdef DEBUG
-#define LOGD(format, ...) printf(format, ## __VARARGS__)
+#define LOGD(format, ...) printf(format, ## __VA_ARGS__)
 #else
 #define LOGD(format, ...)
 #endif
-#define LOGE(format, ...) snprintf(stderr, format, ## __VAR_ARGS__)
+#define LOGE(format, ...) fprintf(stderr, format, ## __VA_ARGS__)
 
 #endif //VIDEOBOX_LOG_H

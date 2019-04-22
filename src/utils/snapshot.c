@@ -5,6 +5,7 @@
 #include "snapshot.h"
 #include <stdio.h>
 #include <libavutil/pixfmt.h>
+#include <libavutil/pixdesc.h>
 #include "log.h"
 
 int save_pgm(unsigned char *buf, int wrap, int width, int height, char *filename) {
@@ -55,13 +56,13 @@ int save_av_frame(AVFrame *frame, char *filename) {
   switch (frame->format) {
     case AV_PIX_FMT_RGB24:
       save_ppm(frame->data[0], frame->linesize[0], frame->width, frame->height, filename);
-      LOGD("snapshot: saved snapshot %s\n", filename)
+      LOGD("snapshot: saved snapshot %s\n", filename);
       return 0;
     case AV_PIX_FMT_YUV420P:
       save_yuv(frame->data, frame->linesize, frame->width, frame->height, filename);
       return 0;
     default:
-
+      LOGD("snapshot: UnSupport pix format %s\n", av_get_pix_fmt_name(frame->format));
       return 0;
   }
 }

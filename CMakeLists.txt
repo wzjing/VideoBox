@@ -3,7 +3,7 @@ project(VideoBox)
 
 include(FindPkgConfig)
 
-add_definitions(DEBUG)
+add_definitions(-DDEBUG)
 
 set(CMAKE_C_FLAGS "-D__STDC_FORMAT_MACROS")
 
