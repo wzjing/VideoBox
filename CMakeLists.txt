@@ -1,28 +1,36 @@
 cmake_minimum_required(VERSION 3.10)
 project(VideoBox)
 
-#set(CMAKE_CXX_STANDARD 11)
-#set(CMAKE_CXX_COMPILER "/usr/bin/clang++")
 set(CMAKE_C_COMPILER "/usr/bin/clang")
 
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -w")
+include(FindPkgConfig)
 
-add_executable(VideoBox src/main.c src/util/screenshot.h src/util/screenshot.c)
+if (${PKG_CONFIG_FOUND})
+    message(STATUS "found pkg-config ${PKG_CONFIG_VERSION_STRING} in ${PKG_CONFIG_EXECUTABLE}")
+else ()
+    message(FATAL_ERROR "no pkg-config found, please install pkg-config and add libraries")
+endif ()
 
-target_link_libraries(VideoBox
-        avdevice
-        avfilter
-        avformat
-        avcodec
-        swscale
-        swresample
-        postproc
-        avutil
-        x264
-        pthread
-        bsd
-        c
-        z
-        m
-        dl
-        )
+pkg_check_modules(FFMPEG libavcodec libavutil libavformat libavfilter libavdevice libswscale)
+
+if (FFMPEG_FOUND)
+    foreach (cflag ${FFMPEG_CFLAGS})
+        message("cflags: ${cflag}")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${cflag}")
+    endforeach (cflag)
+    foreach (ldflag ${FFMPEG_LDFLAGS})
+        message("ldflag: ${ldflag}")
+    endforeach (ldflag)
+endif ()
+
+set(SOURCES src/main.c
+        src/muxing/demuxing.c
+        src/muxing/muxing.c
+        src/codec/decode.c
+        src/codec/encode.c
+        src/image/scale.c
+        src/image/scale.h)
+
+add_executable(VideoBox ${SOURCES})
+
+target_link_libraries(VideoBox ${FFMPEG_LDFLAGS})
