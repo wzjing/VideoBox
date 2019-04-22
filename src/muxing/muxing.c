@@ -3,3 +3,8 @@
 //
 
 #include "muxing.h"
+
+int muxing(const char *input_video, const char *input_audio) {
+    // TODO: muxing video and audio
+    return 0;
+}

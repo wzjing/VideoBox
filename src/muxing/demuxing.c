@@ -15,7 +15,7 @@ static AVFormatContext *fmt_ctx = NULL;
 static AVCodecContext *video_dec_ctx = NULL, *audio_dec_ctx;
 static int width, height;
 static enum AVPixelFormat pix_fmt;
-static AVStream *video_stream = NULL, *audio_stream= NULL;
+static AVStream *video_stream = NULL, *audio_stream = NULL;
 static const char *src_filename = NULL;
 static const char *video_dst_filename = NULL;
 static const char *audio_dst_filename = NULL;
@@ -42,13 +42,13 @@ static int decode_packet(int *got_frame, int cached) {
 
   if (pkt.stream_index == video_stream_idx) {
     ret = avcodec_decode_video2(video_dec_ctx, frame, got_frame, &pkt);
-    if(ret < 0) {
+    if (ret < 0) {
       fprintf(stderr, "Error decoding video frame (%s)\n", av_err2str(ret));
       return ret;
     }
 
-    if(*got_frame) {
-      if(frame->width != width || frame->height != height || frame->format != pix_fmt) {
+    if (*got_frame) {
+      if (frame->width != width || frame->height != height || frame->format != pix_fmt) {
         fprintf(stderr, "Error: Width, height and pixel format have to be "
                         "constant in a rawvideo file, but the width, height or "
                         "pixel format of the input video changed:\n"
@@ -63,31 +63,33 @@ static int decode_packet(int *got_frame, int cached) {
       printf("video_frame%s n:%d coded_n:%d\n",
              cached ? "(cached)" : "",
              video_frame_count++, frame->coded_picture_number);
-      av_image_copy(video_dst_data, video_dst_linesize, (const uint8_t **)(frame->data), frame->linesize,
+      av_image_copy(video_dst_data, video_dst_linesize, (const uint8_t **) (frame->data), frame->linesize,
                     pix_fmt, width, height);
 
       fwrite(video_dst_data[0], 1, video_dst_bufsize, video_dst_file);
     }
-  } else if(pkt.stream_index == audio_stream_idx) {
+  } else if (pkt.stream_index == audio_stream_idx) {
     ret = avcodec_decode_audio4(audio_dec_ctx, frame, got_frame, &pkt);
-    if(ret<0) {
+    if (ret < 0) {
       fprintf(stderr, "Error decoding audio frame (%s)\n", av_err2str(ret));
       return ret;
     }
 
     decoded = FFMIN(ret, pkt.size);
 
-    if(*got_frame) {
-      size_t  unpadded_linesize = frame->nb_samples * av_get_bytes_per_sample(frame->format);
-      printf("audio_frame%s n:%d nb_samples:%d pts:%s\n",
+    if (*got_frame) {
+      size_t unpadded_linesize = frame->nb_samples * av_get_bytes_per_sample(frame->format);
+      const char *channel_name = av_get_channel_name(frame->channel_layout);
+      printf("audio_frame%s n:%d nb_samples:%d pts:%s channel: %s\n",
              cached ? "(cached)" : "",
              audio_frame_count++, frame->nb_samples,
-             av_ts2timestr(frame->pts, &audio_dec_ctx->time_base));
+             av_ts2timestr(frame->pts, &audio_dec_ctx->time_base),
+             channel_name);
       fwrite(frame->extended_data[0], 1, unpadded_linesize, audio_dst_file);
     }
   }
 
-  if(*got_frame && refcount) av_frame_unref(frame);
+  if (*got_frame && refcount) av_frame_unref(frame);
 
   return decoded;
 }
@@ -147,18 +149,19 @@ static int get_format_from_sample_fmt(const char **fmt, enum AVSampleFormat samp
   int i;
 
   struct sample_fmt_entry {
-    enum AVSampleFormat sample_fmt; const char *fmt_be, *fmt_le;
+    enum AVSampleFormat sample_fmt;
+    const char *fmt_be, *fmt_le;
   } sample_fmt_entries[] = {
-      {AV_SAMPLE_FMT_U8, "u8", "u8"},
-      {AV_SAMPLE_FMT_S16, "s16be", "s16le"},
-      { AV_SAMPLE_FMT_S32, "s32be", "s32le" },
-      { AV_SAMPLE_FMT_FLT, "f32be", "f32le" },
-      { AV_SAMPLE_FMT_DBL, "f64be", "f64le" },
+          {AV_SAMPLE_FMT_U8,  "u8",    "u8"},
+          {AV_SAMPLE_FMT_S16, "s16be", "s16le"},
+          {AV_SAMPLE_FMT_S32, "s32be", "s32le"},
+          {AV_SAMPLE_FMT_FLT, "f32be", "f32le"},
+          {AV_SAMPLE_FMT_DBL, "f64be", "f64le"},
   };
 
   *fmt = NULL;
 
-  for(i=0;i<FF_ARRAY_ELEMS(sample_fmt_entries);i++) {
+  for (i = 0; i < FF_ARRAY_ELEMS(sample_fmt_entries); i++) {
     struct sample_fmt_entry *entry = &sample_fmt_entries[i];
     if (sample_fmt == entry->sample_fmt) {
       *fmt = AV_NE(entry->fmt_be, entry->fmt_le);
@@ -166,33 +169,33 @@ static int get_format_from_sample_fmt(const char **fmt, enum AVSampleFormat samp
     }
   }
 
-  fprintf(stderr, "sanple format %s is not supported as output format\n", av_get_sample_fmt_name(sample_fmt));
+  fprintf(stderr, "sample format %s is not supported as output format\n", av_get_sample_fmt_name(sample_fmt));
   return -1;
 }
 
 int demuxing(const char *filename, const char *video_name, const char *audio_name) {
 
-  int ret =0, got_frame;
+  int ret = 0, got_frame;
 
   src_filename = filename;
   video_dst_filename = video_name;
   audio_dst_filename = audio_name;
 
-  if(avformat_open_input(&fmt_ctx, src_filename, NULL, NULL)<0) {
+  if (avformat_open_input(&fmt_ctx, src_filename, NULL, NULL) < 0) {
     fprintf(stderr, "Could not open source file %s\n", src_filename);
     exit(1);
   }
 
-  if(avformat_find_stream_info(fmt_ctx, NULL)<0) {
+  if (avformat_find_stream_info(fmt_ctx, NULL) < 0) {
     fprintf(stderr, "Could not find stream information\n");
     exit(1);
   }
 
-  if(open_codec_context(&video_stream_idx, &video_dec_ctx, fmt_ctx, AVMEDIA_TYPE_VIDEO) >= 0) {
+  if (open_codec_context(&video_stream_idx, &video_dec_ctx, fmt_ctx, AVMEDIA_TYPE_VIDEO) >= 0) {
     video_stream = fmt_ctx->streams[video_stream_idx];
 
     video_dst_file = fopen(video_dst_filename, "wb");
-    if(!video_dst_file) {
+    if (!video_dst_file) {
       fprintf(stderr, "Could not open destination file %s\n", video_dst_filename);
       ret = 1;
       goto end;
@@ -202,7 +205,7 @@ int demuxing(const char *filename, const char *video_name, const char *audio_nam
     height = video_dec_ctx->height;
     pix_fmt = video_dec_ctx->pix_fmt;
     ret = av_image_alloc(video_dst_data, video_dst_linesize, width, height, pix_fmt, 1);
-    if(ret < 0) {
+    if (ret < 0) {
       fprintf(stderr, "Could not allocate raw video buffer\n");
       goto end;
     }
@@ -221,14 +224,14 @@ int demuxing(const char *filename, const char *video_name, const char *audio_nam
 
   av_dump_format(fmt_ctx, 0, src_filename, 0);
 
-  if(!audio_stream && !video_stream) {
+  if (!audio_stream && !video_stream) {
     fprintf(stderr, "Could not find audio or video stream in the input, aborting\n");
     ret = 1;
     goto end;
   }
 
   frame = av_frame_alloc();
-  if(!frame) {
+  if (!frame) {
     fprintf(stderr, "Could not allocate frame\n");
     ret = AVERROR(ENOMEM);
     goto end;
@@ -238,55 +241,66 @@ int demuxing(const char *filename, const char *video_name, const char *audio_nam
   pkt.data = NULL;
   pkt.size = 0;
 
-  if(video_stream) {
+  if (video_stream) {
     printf("Demuxing video from file '%s' into '%s'\n", src_filename, video_dst_filename);
   }
   if (audio_stream) {
     printf("Demuxing audio from file '%s' into '%s'\n", src_filename, audio_dst_filename);
   }
 
-  while(av_read_frame(fmt_ctx, &pkt)>=0) {
+  while (av_read_frame(fmt_ctx, &pkt) >= 0) {
     AVPacket orig_pkt = pkt;
     do {
       ret = decode_packet(&got_frame, 0);
-      if(ret<0) {
+      if (ret < 0) {
         break;
       }
       pkt.data += ret;
-      pkt.size -=ret;
+      pkt.size -= ret;
     } while (pkt.size > 0);
     av_packet_unref(&orig_pkt);
   }
 
+  // flush cache
   pkt.data = NULL;
   pkt.size = 0;
-  do{
+  do {
     decode_packet(&got_frame, 1);
-  } while(got_frame);
+  } while (got_frame);
 
   printf("Demuxing succeeded.\n");
 
-  if(video_stream) {
+  if (video_stream) {
     printf("Video stream: format(%d) size(%dx%d)\n", pix_fmt, width, height);
   }
 
-  if(audio_stream) {
+  if (audio_stream) {
     enum AVSampleFormat sfmt = audio_dec_ctx->sample_fmt;
     int n_channels = audio_dec_ctx->channels;
     const char *fmt;
 
-    if(av_sample_fmt_is_planar(sfmt)) {
+    // if is planar format, channels will be saved in different arrays, not just in AVFrame->data[0]
+    // should use linesize to get all channels from AVFrame->data
+    if (av_sample_fmt_is_planar(sfmt)) {
       const char *packed = av_get_sample_fmt_name(sfmt);
-      printf("warnning: planar format(%s) detected, only firt channel will be output.\n", packed ? packed : "?");
+      printf("warning: planar format(%s) detected, only first channel will be output.\n", packed ? packed : "?");
       sfmt = av_get_packed_sample_fmt(sfmt);
-      n_channels = 1;
     }
 
-    if((ret = get_format_from_sample_fmt(&fmt, sfmt)) <0) {
+    // detect is format is supported by ffplay
+    if ((ret = get_format_from_sample_fmt(&fmt, sfmt)) < 0) {
       goto end;
     }
 
-    printf("Audio stream: format(%s) channel(%d) rate(%d)\n", fmt, n_channels, audio_dec_ctx->sample_rate);
+    char channel_str[200];
+
+    av_get_channel_layout_string(channel_str, 200, n_channels, audio_dec_ctx->channel_layout);
+
+    printf("Audio stream: format(%s) channel(%d) rate(%d) layout(%s)\n",
+           fmt,
+           n_channels,
+           audio_dec_ctx->sample_rate,
+           channel_str);
   }
 
   end:

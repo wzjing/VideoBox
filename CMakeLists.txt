@@ -1,9 +1,11 @@
 cmake_minimum_required(VERSION 3.10)
 project(VideoBox)
 
-set(CMAKE_C_COMPILER "/usr/bin/clang")
-
 include(FindPkgConfig)
+
+add_definitions(DEBUG)
+
+set(CMAKE_C_FLAGS "-D__STDC_FORMAT_MACROS")
 
 if (${PKG_CONFIG_FOUND})
     message(STATUS "found pkg-config ${PKG_CONFIG_VERSION_STRING} in ${PKG_CONFIG_EXECUTABLE}")
@@ -29,7 +31,7 @@ set(SOURCES src/main.c
         src/codec/decode.c
         src/codec/encode.c
         src/image/scale.c
-        src/image/scale.h)
+        src/image/scale.h src/muxing/concat.c src/muxing/concat.h src/utils/snapshot.c src/utils/snapshot.h src/utils/log.h)
 
 add_executable(VideoBox ${SOURCES})
 

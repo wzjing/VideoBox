@@ -10,7 +10,6 @@
 
 #include <libavcodec/avcodec.h>
 #include <libavutil/imgutils.h>
-#include <libavutil/opt.h>
 #include "../image/scale.h"
 
 #define INBUF_SIZE 4096
@@ -123,7 +122,7 @@ static void decode_packet(AVCodecContext *dec_ctx, AVFrame *frame, AVPacket *pkt
   }
 }
 
-int decode(const char *input_file, const char *output_file) {
+int decode_h264(const char *input_file, const char *output_file) {
   const AVCodec *codec;
   AVCodecParserContext *parser;
   AVCodecContext *c = NULL;
