@@ -11,55 +11,42 @@
 #include <libavcodec/avcodec.h>
 #include <libavutil/imgutils.h>
 #include "../image/scale.h"
+#include "../utils/snapshot.h"
 
 #define INBUF_SIZE 4096
 
-struct SwsContext *sws_ctx = NULL;
-uint8_t *dst_data[4];
-int dst_linesize[4];
+//static const char * out_filename;
 
-int byte_per_pixel = -1;
+//struct SwsContext *sws_ctx = NULL;
+//uint8_t *dst_data[4];
+//int dst_linesize[4];
+
+//int byte_per_pixel = -1;
 
 static void ppm_save(AVFrame *src, char *filename) {
 
-  if (byte_per_pixel == -1) {
-    const AVPixFmtDescriptor *desc = av_pix_fmt_desc_get(AV_PIX_FMT_RGB24);
-    byte_per_pixel = av_get_bits_per_pixel(desc);
-    printf("byte per pixel: %d\n", byte_per_pixel);
-  }
-
-  if (!sws_ctx) {
-    printf("initial SwsContext\n");
-    sws_ctx = sws_getContext(src->width, src->height, src->format,
-                             src->width, src->height, AV_PIX_FMT_RGB24,
-                             SWS_BILINEAR, NULL, NULL, NULL);
-  }
-
-  yuv2rgb(sws_ctx, src->data, src->linesize, src->width, src->height, dst_data, dst_linesize, src->width, src->height);
-
-  FILE *f;
-
-  f = fopen(filename, "w");
-  fprintf(f, "P6\n%d %d\n%d\n", src->width, src->height, 255);
-  for (int i = 0; i < src->height; i++) {
-    fwrite(dst_data[0] + i * dst_linesize[0], byte_per_pixel / 8, src->width, f);
-  }
-  fclose(f);
-
-  printf("linesize:(%dx%d) %d %d %d %d\n",
-         src->width,
-         src->height,
-         dst_linesize[0],
-         dst_linesize[1],
-         dst_linesize[2],
-         dst_linesize[3]);
-
-  av_freep(&dst_data);
-  memset(dst_linesize, 0, sizeof(dst_linesize));
+//  if (byte_per_pixel == -1) {
+//    const AVPixFmtDescriptor *desc = av_pix_fmt_desc_get(AV_PIX_FMT_RGB24);
+//    byte_per_pixel = av_get_bits_per_pixel(desc);
+//    printf("byte per pixel: %d\n", byte_per_pixel);
+//  }
+//
+//  if (!sws_ctx) {
+//    printf("initial SwsContext\n");
+//    sws_ctx = sws_getContext(src->width, src->height, src->format,
+//                             src->width, src->height, AV_PIX_FMT_RGB24,
+//                             SWS_BILINEAR, NULL, NULL, NULL);
+//  }
+//
+//  yuv2rgb(sws_ctx, src->data, src->linesize, src->width, src->height, dst_data, dst_linesize, src->width, src->height);
+//
+//  save_ppm(dst_data[0], dst_linesize[0], src->width, src->height, filename);
+//
+//  av_freep(&dst_data);
+//  memset(dst_linesize, 0, sizeof(dst_linesize));
 }
 
-static void decode_packet(AVCodecContext *dec_ctx, AVFrame *frame, AVPacket *pkt, const char *filename) {
-  char buf[1024];
+static void decode_packet(AVCodecContext *dec_ctx, AVFrame *frame, AVPacket *pkt, DECODE_CALLBACK callback) {
   int ret;
 
   ret = avcodec_send_packet(dec_ctx, pkt);
@@ -76,22 +63,14 @@ static void decode_packet(AVCodecContext *dec_ctx, AVFrame *frame, AVPacket *pkt
       fprintf(stderr, "Error during decoding\n");
       exit(1);
     }
-
-    printf("saving frame %3d (%s: %dx%d)\n",
-           dec_ctx->frame_number,
-           av_get_sample_fmt_name(frame->format),
-           frame->width,
-           frame->height);
     fflush(stdout);
-
-    snprintf(buf, sizeof(buf), "%s-%d%s", filename, dec_ctx->frame_number, ".ppm");
-//    pgm_save(frame->data[0], frame->linesize[0], frame->width, frame->height, buf);
-    ppm_save(frame, buf);
-//    yuv_save(frame, buf);
+    printf("Index: %d ", dec_ctx->frame_number);
+    callback(frame);
   }
 }
 
-int decode_h264(const char *input_file, const char *output_file) {
+int decode_h264(const char *input_file, DECODE_CALLBACK callback) {
+
   const AVCodec *codec;
   AVCodecParserContext *parser;
   AVCodecContext *c = NULL;
@@ -162,13 +141,13 @@ int decode_h264(const char *input_file, const char *output_file) {
       data += ret;
       data_size -= ret;
       if (pkt->size) {
-        decode_packet(c, frame, pkt, output_file);
+        decode_packet(c, frame, pkt, callback);
       }
     }
   }
 
   // flush
-  decode_packet(c, frame, NULL, output_file);
+  decode_packet(c, frame, NULL, NULL);
 
   fclose(f);
 
@@ -177,6 +156,6 @@ int decode_h264(const char *input_file, const char *output_file) {
   av_frame_free(&frame);
   av_packet_free(&pkt);
 
-  sws_freeContext(sws_ctx);
+//  sws_freeContext(sws_ctx);
   return 0;
 }

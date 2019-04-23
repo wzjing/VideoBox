@@ -7,14 +7,14 @@
 
 #include <libavutil/frame.h>
 
-int save_pgm(unsigned char *buf, int wrap, int width, int height,
-             char *filename);
+int save_pgm(uint8_t *buf, int wrap, int width, int height,
+             const char *filename);
 
-int save_ppm(unsigned char *buf, int wrap, int width, int height,
-             char *filename);
+int save_ppm(uint8_t *buf, int wrap, int width, int height,
+             const char *filename);
 
-int save_yuv(unsigned char **bufs, const int *wraps, int width, 
-        int height, char *filename);
+int save_yuv(uint8_t **buf, const int *wrap, int width,
+        int height, const char *filename);
 
 int save_av_frame(AVFrame * frame, char * filename);
 

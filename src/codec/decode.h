@@ -8,8 +8,10 @@
 #include <libavcodec/avcodec.h>
 #include <libavutil/imgutils.h>
 
-static void decode_packet(AVCodecContext *dec_ctx, AVFrame *frame, AVPacket *pkt, const char *filename);
+typedef void (*DECODE_CALLBACK)(AVFrame* frame);
 
-int decode_h264(const char *input_file, const char *output_file);
+static void decode_packet(AVCodecContext *dec_ctx, AVFrame *frame, AVPacket *pkt, DECODE_CALLBACK callback);
+
+int decode_h264(const char *input_file, DECODE_CALLBACK callback);
 
 #endif //VIDEOBOX_DECODE_H
