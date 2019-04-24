@@ -34,6 +34,8 @@ static int audio_frame_count = 0;
 
 static int refcount = 0;
 
+static int media_types[10];
+
 static int decode_packet(int *got_frame, int cached) {
   int ret = 0;
   int decoded = pkt.size;
@@ -224,10 +226,6 @@ int demux(const char *filename, DEMUX_CALLBACK cb) {
       goto end;
     }
   }
-
-  int sub_idx;
-
-  if (open_codec_context(&sub_idx, &audio_dec_ctx, fmt_ctx, AVMEDIA_TYPE_ATTACHMENT))
 
   av_dump_format(fmt_ctx, 0, src_filename, 0);
 

@@ -7,6 +7,7 @@
 
 #include <libavcodec/avcodec.h>
 #include <libavutil/imgutils.h>
+#include "../utils/log.h"
 
 typedef void (*DECODE_CALLBACK)(AVFrame* frame);
 

@@ -21,18 +21,13 @@ int save_pgm(uint8_t *buf, int wrap, int width, int height, const char *filename
 }
 
 int save_ppm(uint8_t *buf, int wrap, int width, int height, const char *filename) {
-  LOGD("save ppm\n");
   FILE *f;
-  LOGD("opening file: %s\n", filename);
   f = fopen(filename, "w");
-  LOGD("opening file: %s\n", filename);
   fprintf(f, "P6\n%d %d\n%d\n", width, height, 255);
   for (int i = 0; i < height; i++) {
     fwrite(buf + i * wrap, 3, width, f);
   }
-  LOGD("write done\n");
   fclose(f);
-  LOGD("closed\n");
   return 0;
 }
 
@@ -60,13 +55,11 @@ int save_av_frame(AVFrame *frame, char *filename) {
   switch (frame->format) {
     case AV_PIX_FMT_RGB24:
       save_ppm(frame->data[0], frame->linesize[0], frame->width, frame->height, filename);
-      LOGD("snapshot: saved snapshot %s\n", filename);
       return 0;
     case AV_PIX_FMT_YUV420P:
       save_yuv(frame->data, frame->linesize, frame->width, frame->height, filename);
       return 0;
     default:
-      LOGD("snapshot: UnSupport pix format %s\n", av_get_pix_fmt_name(frame->format));
       return 0;
   }
 }

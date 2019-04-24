@@ -15,37 +15,6 @@
 
 #define INBUF_SIZE 4096
 
-//static const char * out_filename;
-
-//struct SwsContext *sws_ctx = NULL;
-//uint8_t *dst_data[4];
-//int dst_linesize[4];
-
-//int byte_per_pixel = -1;
-
-static void ppm_save(AVFrame *src, char *filename) {
-
-//  if (byte_per_pixel == -1) {
-//    const AVPixFmtDescriptor *desc = av_pix_fmt_desc_get(AV_PIX_FMT_RGB24);
-//    byte_per_pixel = av_get_bits_per_pixel(desc);
-//    printf("byte per pixel: %d\n", byte_per_pixel);
-//  }
-//
-//  if (!sws_ctx) {
-//    printf("initial SwsContext\n");
-//    sws_ctx = sws_getContext(src->width, src->height, src->format,
-//                             src->width, src->height, AV_PIX_FMT_RGB24,
-//                             SWS_BILINEAR, NULL, NULL, NULL);
-//  }
-//
-//  yuv2rgb(sws_ctx, src->data, src->linesize, src->width, src->height, dst_data, dst_linesize, src->width, src->height);
-//
-//  save_ppm(dst_data[0], dst_linesize[0], src->width, src->height, filename);
-//
-//  av_freep(&dst_data);
-//  memset(dst_linesize, 0, sizeof(dst_linesize));
-}
-
 static void decode_packet(AVCodecContext *dec_ctx, AVFrame *frame, AVPacket *pkt, DECODE_CALLBACK callback) {
   int ret;
 
@@ -58,14 +27,15 @@ static void decode_packet(AVCodecContext *dec_ctx, AVFrame *frame, AVPacket *pkt
   while (ret >= 0) {
     ret = avcodec_receive_frame(dec_ctx, frame);
     if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
-      return;
+      LOGD("EOF\n");
+      break;
     } else if (ret < 0) {
       fprintf(stderr, "Error during decoding\n");
       exit(1);
     }
     fflush(stdout);
-    printf("Index: %d ", dec_ctx->frame_number);
-    callback(frame);
+    LOGD("Index: %d ", dec_ctx->frame_number);
+    if (callback) callback(frame);
   }
 }
 
@@ -156,6 +126,5 @@ int decode_h264(const char *input_file, DECODE_CALLBACK callback) {
   av_frame_free(&frame);
   av_packet_free(&pkt);
 
-//  sws_freeContext(sws_ctx);
   return 0;
 }
