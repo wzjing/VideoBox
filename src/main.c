@@ -1,8 +1,8 @@
 
+#include <libswscale/swscale.h>
 #include "muxing/demuxing.h"
 #include "codec/decode.h"
 #include "utils/snapshot.h"
-#include "image/scale.h"
 #include "utils/log.h"
 
 #include <stdio.h>
@@ -12,15 +12,19 @@ const char *filename;
 struct SwsContext *sws_ctx = NULL;
 int i = 0;
 
-void saveFrame(AVFrame *frame) {
+static Media *video;
+static AVFrame *av_frame;
+static Demuxer *demuxer;
+
+void saveAsPPM(AVFrame *frame) {
   if (!frame) return;
   uint8_t *data[4];
   int linesize[4];
 
   if (!sws_ctx) {
     sws_ctx = sws_getContext(frame->width, frame->height, frame->format,
-                   frame->width, frame->height, AV_PIX_FMT_RGB24,
-                   SWS_BILINEAR, NULL, NULL, NULL);
+                             frame->width, frame->height, AV_PIX_FMT_RGB24,
+                             SWS_BILINEAR, NULL, NULL, NULL);
   }
 
   if (av_image_alloc(data, linesize, frame->width, frame->height, AV_PIX_FMT_RGB24, 1) < 0) {
@@ -38,9 +42,20 @@ void saveFrame(AVFrame *frame) {
   av_freep(data);
 }
 
-void cb(AVFrame *frame) {
-  if (frame) {
-    LOGD("order: %d\n", frame->coded_picture_number);
+void saveAsYUV(AVFrame * frame) {
+  if (!frame)return;
+  char buf[256];
+  snprintf(buf, sizeof(buf), "%s-%d%s", filename, i, ".yuv");
+  save_yuv(frame->data, frame->linesize, frame->width, frame->height, buf);
+  i++;
+}
+
+void demux_callback(AVPacket *packet) {
+  if (packet && packet->stream_index == video->stream_id) {
+    LOGD("Decoding Frame...\n");
+    while (packet->size)
+      decode_packet(video->codec_ctx, av_frame, packet, saveAsYUV);
+    LOGD("Decoding Finished\n");
   }
 }
 
@@ -48,12 +63,33 @@ int main(int argc, char *argv[]) {
 
   if (argc > 1) {
 
-    if (strcmp(argv[1], "demux") == 0 && argc == 5) {
-      demux(argv[2], NULL);
-      return 0;
-    } else if (strcmp(argv[1], "decode") == 0 && argc == 4) {
+    if (strcmp(argv[1], "demux") == 0) {
       filename = argv[3];
-      decode_h264(argv[2], saveFrame);
+      demuxer = get_demuxer(argv[2], NULL, NULL, NULL);
+      av_frame = av_frame_alloc();
+      // find video media
+      for (int j = 0; j < demuxer->media_count; ++j) {
+        if (demuxer->media[j]->media_type == AVMEDIA_TYPE_VIDEO) {
+          LOGD("Video Stream at: %d\n", j);
+          video = demuxer->media[j];
+        } else {
+          LOGD("Other stream: %d\n", j);
+        }
+      }
+
+      if (!video) {
+        LOGE("Cant find any video stream\n");
+        return -1;
+      }
+
+      demux(demuxer, demux_callback);
+      decode_packet(video->codec_ctx, av_frame, NULL, NULL);
+      free_demuxer(demuxer);
+      av_frame_free(&av_frame);
+      return 0;
+    } else if (strcmp(argv[1], "decode") == 0) {
+      filename = argv[3];
+      decode_h264(argv[2], saveAsPPM);
       if (sws_ctx) sws_freeContext(sws_ctx);
       LOGD("decode done\n");
       return 0;
