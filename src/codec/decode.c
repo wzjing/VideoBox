@@ -14,12 +14,12 @@
 
 #define INBUF_SIZE 4096
 
-void decode_packet(AVCodecContext *dec_ctx, AVFrame *frame, AVPacket *pkt, DECODE_CALLBACK callback) {
+int decode_packet(AVCodecContext *dec_ctx, AVFrame *frame, AVPacket *pkt, DECODE_CALLBACK callback) {
   int ret;
 
   ret = avcodec_send_packet(dec_ctx, pkt);
   if (ret < 0) {
-    fprintf(stderr, "Error sending a packet for decoding\n");
+    LOGE("Error sending a packet for decoding\n");
     exit(1);
   }
 
@@ -27,15 +27,16 @@ void decode_packet(AVCodecContext *dec_ctx, AVFrame *frame, AVPacket *pkt, DECOD
     ret = avcodec_receive_frame(dec_ctx, frame);
     if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
       LOGD("EOF\n");
-      break;
+      return 0;
     } else if (ret < 0) {
-      fprintf(stderr, "Error during decoding\n");
+      LOGE("Error during decoding\n");
       exit(1);
     }
-    fflush(stdout);
-    LOGD("Index: %d ", dec_ctx->frame_number);
+//    fflush(stdout);
     if (callback) callback(frame);
   }
+
+  return pkt->size;
 }
 
 int decode_h264(const char *input_file, DECODE_CALLBACK callback) {

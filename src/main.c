@@ -8,12 +8,15 @@
 #include <stdio.h>
 #include <string.h>
 
-const char *filename;
+FILE *video_file;
+FILE *audio_file;
 struct SwsContext *sws_ctx = NULL;
 int i = 0;
 
-static Media *video;
-static AVFrame *av_frame;
+static Media *video_media;
+static Media *audio_media;
+static AVFrame *video_frame;
+static AVFrame *audio_frame;
 static Demuxer *demuxer;
 
 void saveAsPPM(AVFrame *frame) {
@@ -36,27 +39,52 @@ void saveAsPPM(AVFrame *frame) {
             linesize);
 
   char buf[256];
-  snprintf(buf, sizeof(buf), "%s-%d%s", filename, i, ".ppm");
+  snprintf(buf, sizeof(buf), "%s-%d%s", video_file, i, ".ppm");
   save_ppm(data[0], linesize[0], frame->width, frame->height, buf);
   i++;
   av_freep(data);
 }
 
-void saveAsYUV(AVFrame * frame) {
+void saveAsYUV(AVFrame *frame) {
   if (!frame)return;
   char buf[256];
-  snprintf(buf, sizeof(buf), "%s-%d%s", filename, i, ".yuv");
+  snprintf(buf, sizeof(buf), "%s%03d%s", video_file, i, ".yuv");
   save_yuv(frame->data, frame->linesize, frame->width, frame->height, buf);
   i++;
 }
 
-void demux_callback(AVPacket *packet) {
-  if (packet && packet->stream_index == video->stream_id) {
-    LOGD("Decoding Frame...\n");
-    while (packet->size)
-      decode_packet(video->codec_ctx, av_frame, packet, saveAsYUV);
-    LOGD("Decoding Finished\n");
+void save_video(AVFrame *frame) {
+  for (int j = 0; j < frame->linesize[0]; ++j) {
+    fwrite(frame->data[0], frame->height, 1, video_file);
   }
+  for (int j = 0; j < frame->linesize[1]; ++j) {
+    fwrite(frame->data[1], frame->height / 2, 1, video_file);
+  }
+  for (int j = 0; j < frame->linesize[2]; ++j) {
+    fwrite(frame->data[2], frame->height / 2, 1, video_file);
+  }
+}
+
+void save_audio(AVFrame *frame) {
+  int data_size = av_get_bytes_per_sample(audio_media->codec_ctx->sample_fmt);
+  for (int j = 0; j < frame->nb_samples; ++j) {
+    for (int ch = 0; ch < frame->channels; ch++)
+      fwrite(frame->data[ch] + data_size * i, 1, data_size, video_file);
+  }
+}
+
+void demux_callback(AVPacket *packet) {
+  if (packet && packet->stream_index == video_media->stream_id) {
+    LOGD("decoding new packet\n");
+    while (decode_packet(video_media->codec_ctx, video_frame, packet, save_video)) {
+      LOGD("Decoding video frame: %d\n", video_media->codec_ctx->frame_number);
+    }
+  }
+//  else if (packet && packet->stream_index == audio_media->stream_id) {
+//    while (decode_packet(audio_media->codec_ctx, audio_frame, packet, save_audio)) {
+//      LOGD("Decoding audio frame: %d\n", audio_media->codec_ctx->frame_number);
+//    }
+//  }
 }
 
 int main(int argc, char *argv[]) {
@@ -64,31 +92,49 @@ int main(int argc, char *argv[]) {
   if (argc > 1) {
 
     if (strcmp(argv[1], "demux") == 0) {
-      filename = argv[3];
       demuxer = get_demuxer(argv[2], NULL, NULL, NULL);
-      av_frame = av_frame_alloc();
+      video_frame = av_frame_alloc();
+      audio_frame = av_frame_alloc();
       // find video media
       for (int j = 0; j < demuxer->media_count; ++j) {
+        LOGD("stream: %d\n", j);
         if (demuxer->media[j]->media_type == AVMEDIA_TYPE_VIDEO) {
-          LOGD("Video Stream at: %d\n", j);
-          video = demuxer->media[j];
-        } else {
-          LOGD("Other stream: %d\n", j);
+          video_media = demuxer->media[j];
+          LOGD("Video Stream at: %d %s\n", j, avcodec_get_name(video_media->codec_ctx->codec_id));
+        } else if (demuxer->media[j]->media_type == AVMEDIA_TYPE_AUDIO) {
+          audio_media = demuxer->media[j];
+          LOGD("Audio Stream at: %d %s\n", j, avcodec_get_name(audio_media->codec_ctx->codec_id));
         }
       }
 
-      if (!video) {
+      if (!video_media) {
         LOGE("Cant find any video stream\n");
-        return -1;
       }
 
+      if (!audio_media) {
+        LOGE("Cant find any audio stream\n");
+      }
+
+      video_file = fopen(argv[3], "wb");
+      audio_file = fopen(argv[4], "wb");
       demux(demuxer, demux_callback);
-      decode_packet(video->codec_ctx, av_frame, NULL, NULL);
+
+      // flush
+      if (video_media)
+        decode_packet(video_media->codec_ctx, video_frame, NULL, NULL);
+      if (audio_media)
+        decode_packet(audio_media->codec_ctx, audio_frame, NULL, NULL);
+
+      fflush(video_file);
+      fflush(audio_file);
+      fclose(video_file);
+      fclose(audio_file);
+
       free_demuxer(demuxer);
-      av_frame_free(&av_frame);
+      av_frame_free(&video_frame);
       return 0;
     } else if (strcmp(argv[1], "decode") == 0) {
-      filename = argv[3];
+//      video_file = argv[3];
       decode_h264(argv[2], saveAsPPM);
       if (sws_ctx) sws_freeContext(sws_ctx);
       LOGD("decode done\n");
