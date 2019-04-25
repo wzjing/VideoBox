@@ -15,6 +15,8 @@
 #define INBUF_SIZE 4096
 
 int decode_packet(AVCodecContext *dec_ctx, AVFrame *frame, AVPacket *pkt, DECODE_CALLBACK callback) {
+  if (!pkt) return 0;
+
   int ret;
 
   ret = avcodec_send_packet(dec_ctx, pkt);
@@ -26,13 +28,12 @@ int decode_packet(AVCodecContext *dec_ctx, AVFrame *frame, AVPacket *pkt, DECODE
   while (ret >= 0) {
     ret = avcodec_receive_frame(dec_ctx, frame);
     if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
-      LOGD("EOF\n");
       return 0;
     } else if (ret < 0) {
       LOGE("Error during decoding\n");
       exit(1);
     }
-//    fflush(stdout);
+    fflush(stdout);
     if (callback) callback(frame);
   }
 

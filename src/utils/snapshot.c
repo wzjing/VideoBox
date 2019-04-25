@@ -43,10 +43,10 @@ int save_yuv(uint8_t **buf, const int *wrap, int width, int height, const char *
     fwrite(buf[1] + wrap[1] * i, 1, width / 2, f);
   }
 
-  for (int i = 0; i < height; i++) {
+  for (int i = 0; i < height / 2; i++) {
     fwrite(buf[2] + wrap[2] * i, 1, width / 2, f);
   }
-
+  fflush(stdout);
   fclose(f);
   return 0;
 }

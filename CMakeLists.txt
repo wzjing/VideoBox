@@ -34,7 +34,7 @@ set(SOURCES src/main.c
         src/muxing/concat.h
         src/utils/snapshot.c
         src/utils/snapshot.h
-        src/utils/log.h)
+        src/utils/log.h src/demux_decode.c src/demux_decode.h src/mux_encode.c src/mux_encode.h)
 
 add_executable(VideoBox ${SOURCES})
 

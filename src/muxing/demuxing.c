@@ -11,12 +11,12 @@
 #include <libavutil/timestamp.h>
 
 void free_demuxer(Demuxer *demuxer) {
-  avformat_close_input(&demuxer->fmt_ctx);
   for (int i = 0; i < demuxer->fmt_ctx->nb_streams; ++i) {
     if (demuxer->media[i]) {
       avcodec_free_context(&demuxer->media[i]->codec_ctx);
     }
   }
+  avformat_close_input(&demuxer->fmt_ctx);
 }
 
 Media *get_media(AVFormatContext *fmt_ctx, enum AVMediaType media_type, AVDictionary *opt) {
@@ -128,7 +128,6 @@ Demuxer *get_demuxer(const char *filename, AVDictionary *fmt_open_opt, AVDiction
     demuxer->media[i] = media;
     demuxer->media_count++;
   }
-
 
   return demuxer;
 }

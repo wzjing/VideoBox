@@ -5,6 +5,11 @@
 #ifndef VIDEOBOX_ENCODE_H
 #define VIDEOBOX_ENCODE_H
 
-int encode(const char * input_format, const char * output_filename);
+#include <libavcodec/avcodec.h>
+#include "../utils/log.h"
+
+typedef void(*ENCODE_CALLBACK)(AVPacket * packet);
+
+void encode_packet(AVCodecContext * enc_ctx, AVFrame * frame, AVPacket * packet, ENCODE_CALLBACK callback);
 
 #endif //VIDEOBOX_ENCODE_H
