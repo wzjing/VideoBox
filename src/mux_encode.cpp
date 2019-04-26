@@ -5,8 +5,9 @@
 #include "mux_encode.h"
 #include "utils/log.h"
 #include "codec/encode.h"
+#include <cstdio>
 
-#include <stdio.h>
+extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavutil/opt.h>
@@ -15,6 +16,7 @@
 #include <libavutil/channel_layout.h>
 #include <libswscale/swscale.h>
 #include <libswresample/swresample.h>
+}
 
 #define STREAM_DURATION 10
 #define SCALE_FLAGS SWS_BICUBIC
@@ -75,29 +77,12 @@ static void add_stream(struct OutputStream *ost, AVFormatContext *fmt_ctx, AVCod
       codec_ctx->sample_fmt = (*codec)->sample_fmts ? (*codec)->sample_fmts[0] : AV_SAMPLE_FMT_FLTP;
       codec_ctx->bit_rate = 64000;
       codec_ctx->sample_rate = 44100;
-      // check if sample rate is supported
-      if ((*codec)->supported_samplerates) {
-        codec_ctx->sample_rate = (*codec)->supported_samplerates[0];
-        for (int i = 0; (*codec)->supported_samplerates[i]; ++i) {
-          if ((*codec)->supported_samplerates[i] == 44100) {
-            codec_ctx->sample_rate = 44100;
-          }
-        }
-      }
       codec_ctx->channel_layout = AV_CH_LAYOUT_STEREO;
-      codec_ctx->channels = av_get_channel_layout_nb_channels(codec_ctx->channel_layout);
-      if ((*codec)->channel_layouts) {
-        codec_ctx->channel_layout = (*codec)->channel_layouts[0];
-        for (int i = 0; (*codec)->channel_layouts[i]; ++i) {
-          if ((*codec)->channel_layouts[i] == AV_CH_LAYOUT_STEREO) {
-            codec_ctx->channel_layout = AV_CH_LAYOUT_STEREO;
-          }
-        }
-      }
       codec_ctx->channels = av_get_channel_layout_nb_channels(codec_ctx->channel_layout);
       ost->stream->time_base = (AVRational) {1, codec_ctx->sample_rate};
       break;
-    case AVMEDIA_TYPE_VIDEO:codec_ctx->codec_id = codec_id;
+    case AVMEDIA_TYPE_VIDEO:
+      codec_ctx->codec_id = codec_id;
       codec_ctx->bit_rate = 400000;
       codec_ctx->width = 1920;
       codec_ctx->height = 1080;
@@ -109,7 +94,8 @@ static void add_stream(struct OutputStream *ost, AVFormatContext *fmt_ctx, AVCod
     case AVMEDIA_TYPE_SUBTITLE:
     case AVMEDIA_TYPE_ATTACHMENT:
     case AVMEDIA_TYPE_NB:
-    case AVMEDIA_TYPE_UNKNOWN:LOGE("add_stream: unknown stream type: %d", (*codec)->type);
+    case AVMEDIA_TYPE_UNKNOWN:
+      LOGE("add_stream: unknown stream type: %d", (*codec)->type);
       break;
   }
 }
@@ -338,10 +324,10 @@ void mux_encode(const char *filename, const char *video_source, const char *audi
   while (encode_video || encode_audio) {
     if (encode_video &&
         (!encode_audio ||
-            av_compare_ts(video_stream.next_pts,
-                          video_stream.codec_ctx->time_base,
-                          audio_stream.next_pts,
-                          audio_stream.codec_ctx->time_base) <= 0)) {
+         av_compare_ts(video_stream.next_pts,
+                       video_stream.codec_ctx->time_base,
+                       audio_stream.next_pts,
+                       audio_stream.codec_ctx->time_base) <= 0)) {
       AVPacket packet = {nullptr};
       av_init_packet(&packet);
       // TODO: fill the AVFrame

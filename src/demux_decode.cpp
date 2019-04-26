@@ -7,9 +7,11 @@
 #include "codec/decode.h"
 #include "utils/snapshot.h"
 #include "utils/log.h"
+#include <cstdio>
 
-#include <stdio.h>
+extern "C" {
 #include <libswscale/swscale.h>
+}
 
 static const char *frame_name;
 static FILE *video_file;
@@ -22,7 +24,7 @@ static AVFrame *audio_frame;
 static Demuxer *demuxer;
 
 // Additional image format convert
-static struct SwsContext *sws_ctx = NULL;
+static struct SwsContext *sws_ctx = nullptr;
 
 void saveAsPPM(AVFrame *frame) {
   if (!frame) return;
@@ -30,9 +32,9 @@ void saveAsPPM(AVFrame *frame) {
   int linesize[4];
 
   if (!sws_ctx) {
-    sws_ctx = sws_getContext(frame->width, frame->height, frame->format,
+    sws_ctx = sws_getContext(frame->width, frame->height, (enum AVPixelFormat) frame->format,
                              frame->width, frame->height, AV_PIX_FMT_RGB24,
-                             SWS_BILINEAR, NULL, NULL, NULL);
+                             SWS_BILINEAR, nullptr, nullptr, nullptr);
   }
 
   if (av_image_alloc(data, linesize, frame->width, frame->height, AV_PIX_FMT_RGB24, 1) < 0) {
@@ -60,26 +62,23 @@ void saveAsYUV(AVFrame *frame) {
 
 void save_video(AVFrame *frame) {
   if (!frame) return;
-  LOGD("Saving frame: %02d", video_media->codec_ctx->frame_number);
+  LOGD("Saving video frame: %02d\n", video_media->codec_ctx->frame_number);
   long start = ftell(video_file);
   for (int i = 0; i < frame->height; i++) {
     fwrite(frame->data[0] + frame->linesize[0] * i, 1, frame->linesize[0], video_file);
   }
-  LOGD("\t0: %ld\t1: %ld", start, ftell(video_file) - start);
   start = ftell(video_file);
   for (int i = 0; i < frame->height / 2; i++) {
     fwrite(frame->data[1] + frame->linesize[1] * i, 1, frame->linesize[1], video_file);
   }
-  LOGD("\t2: %ld", ftell(video_file) - start);
   start = ftell(video_file);
   for (int i = 0; i < frame->height / 2; i++) {
     fwrite(frame->data[2] + frame->linesize[2] * i, 1, frame->linesize[2], video_file);
   }
-  LOGD("\t3: %ld\n", ftell(video_file) - start);
 }
 
 void save_audio(AVFrame *frame) {
-  LOGD("Track: %d Channel: %d\n", frame->nb_samples, frame->channels);
+  LOGD("Saving audio frame: %02d nb_samples(%d)\n", audio_media->codec_ctx->frame_number, frame->nb_samples);
   int data_size = av_get_bytes_per_sample(audio_media->codec_ctx->sample_fmt);
   for (int i = 0; i < frame->nb_samples; ++i) {
     for (int ch = 0; ch < frame->channels; ch++)
@@ -103,7 +102,7 @@ void demux_callback(AVPacket *packet) {
 }
 
 void demux_decode(const char *input_filename, const char *output_video_name, const char *output_audio_name) {
-  demuxer = get_demuxer(input_filename, NULL, NULL, NULL);
+  demuxer = get_demuxer(input_filename, nullptr, nullptr, nullptr);
   video_frame = av_frame_alloc();
   audio_frame = av_frame_alloc();
   // find media
@@ -132,9 +131,9 @@ void demux_decode(const char *input_filename, const char *output_video_name, con
 
   // flush
   if (video_media)
-    decode_packet(video_media->codec_ctx, video_frame, NULL, NULL);
+    decode_packet(video_media->codec_ctx, video_frame, nullptr, nullptr);
   if (audio_media)
-    decode_packet(audio_media->codec_ctx, audio_frame, NULL, NULL);
+    decode_packet(audio_media->codec_ctx, audio_frame, nullptr, nullptr);
 
   fflush(stdout);
   fflush(audio_file);

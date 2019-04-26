@@ -5,9 +5,12 @@
 #ifndef VIDEOBOX_ENCODE_H
 #define VIDEOBOX_ENCODE_H
 
-#include <libavcodec/avcodec.h>
 #include <functional>
 #include "../utils/log.h"
+
+extern "C" {
+#include <libavcodec/avcodec.h>
+}
 
 typedef const std::function<void(AVPacket *pkt)> &ENCODE_CALLBACK;
 

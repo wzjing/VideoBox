@@ -5,7 +5,7 @@
 #ifndef VIDEOBOX_LOG_H
 #define VIDEOBOX_LOG_H
 
-#include <stdio.h>
+#include <cstdio>
 
 #define LOG(format, ...) printf(format, ## __VA_ARGS__)
 #ifdef DEBUG

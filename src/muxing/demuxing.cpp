@@ -4,11 +4,13 @@
 
 #include "demuxing.h"
 
-#include <stdio.h>
+#include <cstdio>
 
+extern "C" {
 #include <libavutil/imgutils.h>
 #include <libavutil/samplefmt.h>
 #include <libavutil/timestamp.h>
+}
 
 void free_demuxer(Demuxer *demuxer) {
   for (int i = 0; i < demuxer->fmt_ctx->nb_streams; ++i) {
@@ -20,7 +22,7 @@ void free_demuxer(Demuxer *demuxer) {
 }
 
 Media *get_media(AVFormatContext *fmt_ctx, enum AVMediaType media_type, AVDictionary *opt) {
-  Media *media = malloc(sizeof(Media));
+  Media *media = (Media *) malloc(sizeof(Media));
   media->media_type = media_type;
 
   media->stream_id = av_find_best_stream(fmt_ctx, media_type, -1, -1, NULL, 0);
@@ -65,12 +67,14 @@ Media *get_media(AVFormatContext *fmt_ctx, enum AVMediaType media_type, AVDictio
 
 Demuxer *get_demuxer(const char *filename, AVDictionary *fmt_open_opt, AVDictionary *fmt_stream_opt,
                      AVDictionary *codec_opt) {
-  Demuxer *demuxer = malloc(sizeof(Demuxer));
-  demuxer->fmt_ctx = NULL;
+  auto *demuxer = (Demuxer *) malloc(sizeof(Demuxer));
+  demuxer->fmt_ctx = nullptr;
   demuxer->media_count = 0;
 
-  if (avformat_open_input(&demuxer->fmt_ctx, filename, NULL, &fmt_open_opt) < 0) {
-    LOGE("get_demuxer: Could not open source file %s\n", filename);
+  int ret = 0;
+  ret = avformat_open_input(&demuxer->fmt_ctx, filename, nullptr, &fmt_open_opt);
+  if (ret < 0) {
+    LOGE("get_demuxer: Could not open source file %s %s\n", filename, av_err2str(ret));
     return NULL;
   }
 
@@ -85,11 +89,11 @@ Demuxer *get_demuxer(const char *filename, AVDictionary *fmt_open_opt, AVDiction
     return NULL;
   }
 
-  demuxer->media = malloc(sizeof(Media) * demuxer->fmt_ctx->nb_streams);
+  demuxer->media = (Media **) malloc(sizeof(Media) * demuxer->fmt_ctx->nb_streams);
 
   // get all AVCodecContext
   for (int i = 0; i < demuxer->fmt_ctx->nb_streams; ++i) {
-    Media *media = malloc(sizeof(Media));
+    Media *media = (Media *) malloc(sizeof(Media));
     media->stream_id = i;
     media->stream = demuxer->fmt_ctx->streams[i];
     media->media_type = media->stream->codecpar->codec_type;

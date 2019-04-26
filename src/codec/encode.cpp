@@ -23,7 +23,7 @@ void encode_packet(AVCodecContext * enc_ctx, AVFrame * frame, AVPacket * packet,
       exit(1);
     }
 
-    (*callback)(packet);
+    callback(packet);
     av_packet_unref(packet);
   }
 }

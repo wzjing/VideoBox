@@ -3,10 +3,7 @@
 //
 
 #include "snapshot.h"
-#include <stdio.h>
-#include <libavutil/pixfmt.h>
-#include <libavutil/pixdesc.h>
-#include "log.h"
+
 
 int save_pgm(uint8_t *buf, int wrap, int width, int height, const char *filename) {
   FILE *f;

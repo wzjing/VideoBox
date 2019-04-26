@@ -5,19 +5,22 @@
 #ifndef VIDEOBOX_DEMUXING_H
 #define VIDEOBOX_DEMUXING_H
 
+#include "../utils/log.h"
+
+extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
-#include "../utils/log.h"
+}
 
 typedef struct Media {
   unsigned int stream_id;
   enum AVMediaType media_type;
-  AVCodecContext* codec_ctx;
-  AVStream * stream;
+  AVCodecContext *codec_ctx;
+  AVStream *stream;
 } Media;
 
 typedef struct Demuxer {
-  AVFormatContext* fmt_ctx;
+  AVFormatContext *fmt_ctx;
   Media **media;
   unsigned int media_count;
 } Demuxer;
