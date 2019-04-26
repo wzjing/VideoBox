@@ -1,11 +1,13 @@
 cmake_minimum_required(VERSION 3.10)
 project(VideoBox)
 
+set(CMAKE_C_STANDARD 11)
+
 include(FindPkgConfig)
 
-add_definitions(-DDEBUG)
+add_definitions(-DDEBUG -D__STDC_FORMAT_MACROS)
 
-set(CMAKE_C_FLAGS "-D__STDC_FORMAT_MACROS")
+set(CMAKE_C_FLAGS "-fblocks")
 
 if (${PKG_CONFIG_FOUND})
     message(STATUS "found pkg-config ${PKG_CONFIG_VERSION_STRING} in ${PKG_CONFIG_EXECUTABLE}")
@@ -29,13 +31,13 @@ set(SOURCES src/main.c
         src/muxing/demuxing.c
         src/muxing/muxing.c
         src/codec/decode.c
-        src/codec/encode.c
+        src/codec/encode.cpp
         src/muxing/concat.c
         src/muxing/concat.h
         src/utils/snapshot.c
         src/utils/snapshot.h
-        src/utils/log.h src/demux_decode.c src/demux_decode.h src/mux_encode.c src/mux_encode.h)
+        src/utils/log.h src/demux_decode.cpp src/demux_decode.h src/mux_encode.cpp src/mux_encode.h)
 
 add_executable(VideoBox ${SOURCES})
 
-target_link_libraries(VideoBox ${FFMPEG_LDFLAGS})
+target_link_libraries(VideoBox ${FFMPEG_LDFLAGS} )

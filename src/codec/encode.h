@@ -6,10 +6,11 @@
 #define VIDEOBOX_ENCODE_H
 
 #include <libavcodec/avcodec.h>
+#include <functional>
 #include "../utils/log.h"
 
-typedef void(*ENCODE_CALLBACK)(AVPacket * packet);
+typedef const std::function<void(AVPacket *pkt)> &ENCODE_CALLBACK;
 
-void encode_packet(AVCodecContext * enc_ctx, AVFrame * frame, AVPacket * packet, ENCODE_CALLBACK callback);
+void encode_packet(AVCodecContext *enc_ctx, AVFrame *frame, AVPacket *packet, ENCODE_CALLBACK callback);
 
 #endif //VIDEOBOX_ENCODE_H

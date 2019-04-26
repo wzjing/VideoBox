@@ -4,6 +4,7 @@
 
 #include "mux_encode.h"
 #include "utils/log.h"
+#include "codec/encode.h"
 
 #include <stdio.h>
 #include <libavcodec/avcodec.h>
@@ -14,6 +15,9 @@
 #include <libavutil/channel_layout.h>
 #include <libswscale/swscale.h>
 #include <libswresample/swresample.h>
+
+#define STREAM_DURATION 10
+#define SCALE_FLAGS SWS_BICUBIC
 
 typedef struct OutputStream {
   AVStream *stream;
@@ -31,8 +35,7 @@ typedef struct OutputStream {
   struct SwrContext *swr_ctx;
 } OutputStream;
 
-static int write_frame(AVFormatContext *fmt_ctx, const AVRational *time_base, AVStream *st, AVPacket *pkt)
-{
+static int write_frame(AVFormatContext *fmt_ctx, const AVRational *time_base, AVStream *st, AVPacket *pkt) {
   /* rescale output packet timestamp values from codec to stream timebase */
   av_packet_rescale_ts(pkt, *time_base, st->time_base);
   pkt->stream_index = st->index;
@@ -94,8 +97,7 @@ static void add_stream(struct OutputStream *ost, AVFormatContext *fmt_ctx, AVCod
       codec_ctx->channels = av_get_channel_layout_nb_channels(codec_ctx->channel_layout);
       ost->stream->time_base = (AVRational) {1, codec_ctx->sample_rate};
       break;
-    case AVMEDIA_TYPE_VIDEO:
-      codec_ctx->codec_id = codec_id;
+    case AVMEDIA_TYPE_VIDEO:codec_ctx->codec_id = codec_id;
       codec_ctx->bit_rate = 400000;
       codec_ctx->width = 1920;
       codec_ctx->height = 1080;
@@ -107,13 +109,20 @@ static void add_stream(struct OutputStream *ost, AVFormatContext *fmt_ctx, AVCod
     case AVMEDIA_TYPE_SUBTITLE:
     case AVMEDIA_TYPE_ATTACHMENT:
     case AVMEDIA_TYPE_NB:
-    case AVMEDIA_TYPE_UNKNOWN:
-      LOGE("add_stream: unknown stream type: %d", (*codec)->type);
+    case AVMEDIA_TYPE_UNKNOWN:LOGE("add_stream: unknown stream type: %d", (*codec)->type);
       break;
   }
 }
 
-static AVFrame *alloc_frame(enum AVPixelFormat pix_fmt, int width, int height) {
+static void close_stream(AVFormatContext *oc, OutputStream *ost) {
+  avcodec_free_context(&ost->codec_ctx);
+  av_frame_free(&ost->frame);
+  av_frame_free(&ost->temp_frame);
+  sws_freeContext(ost->sws_ctx);
+  swr_free(&ost->swr_ctx);
+}
+
+static AVFrame *alloc_video_frame(enum AVPixelFormat pix_fmt, int width, int height) {
   AVFrame *frame;
   int ret;
 
@@ -175,7 +184,7 @@ static void open_video(AVFormatContext *fmt_ctx, AVCodec *codec, OutputStream *o
     exit(1);
   }
 
-  ost->frame = alloc_frame(codec_ctx->pix_fmt, codec_ctx->width, codec_ctx->height);
+  ost->frame = alloc_video_frame(codec_ctx->pix_fmt, codec_ctx->width, codec_ctx->height);
   if (!ost->frame) {
     LOGE("open_video: unable to allocate video frame\n");
     exit(1);
@@ -183,7 +192,7 @@ static void open_video(AVFormatContext *fmt_ctx, AVCodec *codec, OutputStream *o
 
   ost->temp_frame = NULL;
   if (codec_ctx->pix_fmt != AV_PIX_FMT_YUV420P) {
-    ost->temp_frame = alloc_frame(AV_PIX_FMT_YUV420P, codec_ctx->width, codec_ctx->height);
+    ost->temp_frame = alloc_video_frame(AV_PIX_FMT_YUV420P, codec_ctx->width, codec_ctx->height);
     if (!ost->temp_frame) {
       LOGE("open_video: unable to allocate temp video frame\n");
       exit(1);
@@ -224,8 +233,6 @@ static void open_audio(AVFormatContext *fmt_ctx, AVCodec *codec, OutputStream *o
 
   ost->frame = alloc_audio_frame(codec_ctx->sample_fmt, codec_ctx->channel_layout,
                                  codec_ctx->sample_rate, nb_samples);
-  ost->temp_frame = alloc_audio_frame(AV_SAMPLE_FMT_S16, codec_ctx->channel_layout,
-                                      codec_ctx->sample_rate, nb_samples);
 
   ret = avcodec_parameters_from_context(ost->stream->codecpar, codec_ctx);
   if (ret < 0) {
@@ -252,12 +259,24 @@ static void open_audio(AVFormatContext *fmt_ctx, AVCodec *codec, OutputStream *o
   }
 }
 
-static void close_stream(AVFormatContext *oc, OutputStream *ost) {
-  avcodec_free_context(&ost->codec_ctx);
-  av_frame_free(&ost->frame);
-  av_frame_free(&ost->temp_frame);
-  sws_freeContext(ost->sws_ctx);
-  swr_free(&ost->swr_ctx);
+static AVFrame *get_video_frame(OutputStream *ost) {
+  AVCodecContext *c = ost->codec_ctx;
+
+  /* check if we want to generate more frames */
+  if (av_compare_ts(ost->next_pts, c->time_base,
+                    STREAM_DURATION, (AVRational) {1, 1}) >= 0)
+    return NULL;
+
+  /* when we pass a frame to the encoder, it may keep a reference to it
+   * internally; make sure we do not overwrite it here */
+  if (av_frame_make_writable(ost->frame) < 0)
+    exit(1);
+
+  // frame data
+
+  ost->frame->pts = ost->next_pts++;
+
+  return ost->frame;
 }
 
 void mux_encode(const char *filename, const char *video_source, const char *audio_source) {
@@ -319,11 +338,16 @@ void mux_encode(const char *filename, const char *video_source, const char *audi
   while (encode_video || encode_audio) {
     if (encode_video &&
         (!encode_audio ||
-         av_compare_ts(video_stream.next_pts,
-                       video_stream.codec_ctx->time_base,
-                       audio_stream.next_pts,
-                       audio_stream.codec_ctx->time_base) <= 0)) {
-      //TODO: encode video and set encode_video
+            av_compare_ts(video_stream.next_pts,
+                          video_stream.codec_ctx->time_base,
+                          audio_stream.next_pts,
+                          audio_stream.codec_ctx->time_base) <= 0)) {
+      AVPacket packet = {nullptr};
+      av_init_packet(&packet);
+      // TODO: fill the AVFrame
+      encode_packet(video_stream.codec_ctx, video_stream.frame, &packet, [](AVPacket *pkt) -> void {
+
+      });
 
     } else {
       // TODO: encode audio and set encode_audio
