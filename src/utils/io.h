@@ -19,7 +19,7 @@ extern "C" {
 void read_yuv(FILE *file, AVFrame * frame, int width, int height, int index,
               enum AVPixelFormat pix_fmt);
 
-void read_pcm(FILE *file, AVFrame * frame, int sample_rate, int nb_samples, int channels, int index,
+void read_pcm(FILE *file, AVFrame * frame, int nb_samples, int channels, int index,
               enum AVSampleFormat sample_fmt);
 
 #endif //VIDEOBOX_IO_H

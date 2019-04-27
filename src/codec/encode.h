@@ -14,6 +14,6 @@ extern "C" {
 
 typedef const std::function<void(AVPacket *pkt)> &ENCODE_CALLBACK;
 
-void encode_packet(AVCodecContext *enc_ctx, AVFrame *frame, AVPacket *packet, ENCODE_CALLBACK callback);
+int encode_packet(AVCodecContext *enc_ctx, AVFrame *frame, AVPacket *packet, ENCODE_CALLBACK callback);
 
 #endif //VIDEOBOX_ENCODE_H

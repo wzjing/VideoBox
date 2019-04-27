@@ -22,10 +22,10 @@ void free_demuxer(Demuxer *demuxer) {
 }
 
 Media *get_media(AVFormatContext *fmt_ctx, enum AVMediaType media_type, AVDictionary *opt) {
-  Media *media = (Media *) malloc(sizeof(Media));
+  auto *media = (Media *) malloc(sizeof(Media));
   media->media_type = media_type;
 
-  media->stream_id = av_find_best_stream(fmt_ctx, media_type, -1, -1, NULL, 0);
+  media->stream_id = av_find_best_stream(fmt_ctx, media_type, -1, -1, nullptr, 0);
 
   if (media->stream_id >= 0) {
     media->stream = fmt_ctx->streams[media->stream_id];
@@ -34,7 +34,7 @@ Media *get_media(AVFormatContext *fmt_ctx, enum AVMediaType media_type, AVDictio
     if (!codec) {
       LOGE("get_media: failed to find codec of stream %d %s",
            media->stream_id, av_get_media_type_string(media_type));
-      return NULL;
+      return nullptr;
     }
 
     media->codec_ctx = avcodec_alloc_context3(codec);
@@ -42,26 +42,26 @@ Media *get_media(AVFormatContext *fmt_ctx, enum AVMediaType media_type, AVDictio
     if (!media->codec_ctx) {
       LOGE("get_media: failed to allocate memory for AVCodecContext of %d %s",
            media->stream_id, av_get_media_type_string(media_type));
-      return NULL;
+      return nullptr;
     }
 
     if (avcodec_parameters_to_context(media->codec_ctx, media->stream->codecpar)) {
       LOGE("get_media: failed to copy parameters to AVCodecContext of %d %s",
            media->stream_id, av_get_media_type_string(media_type));
-      return NULL;
+      return nullptr;
     }
 
     if (avcodec_open2(media->codec_ctx, codec, &opt) < 0) {
       LOGE("get_media: failed to open AVCodecContext of %d %s",
            media->stream_id, av_get_media_type_string(media_type));
-      return NULL;
+      return nullptr;
     }
 
     return media;
   } else {
     LOGE("get_media: no stream found for media type %s", av_get_media_type_string(media_type));
     free(media);
-    return NULL;
+    return nullptr;
   }
 }
 
@@ -75,25 +75,25 @@ Demuxer *get_demuxer(const char *filename, AVDictionary *fmt_open_opt, AVDiction
   ret = avformat_open_input(&demuxer->fmt_ctx, filename, nullptr, &fmt_open_opt);
   if (ret < 0) {
     LOGE("get_demuxer: Could not open source file %s %s\n", filename, av_err2str(ret));
-    return NULL;
+    return nullptr;
   }
 
   if (avformat_find_stream_info(demuxer->fmt_ctx, &fmt_stream_opt) < 0) {
-    LOGE("Could not find stream information\n");
-    return NULL;
+    LOGE("get_demuxer: Could not find stream information\n");
+    return nullptr;
   }
 
   if (demuxer->fmt_ctx->nb_streams == 0) {
     LOGE("get_demuxer: no stream found\n");
     avformat_free_context(demuxer->fmt_ctx);
-    return NULL;
+    return nullptr;
   }
 
   demuxer->media = (Media **) malloc(sizeof(Media) * demuxer->fmt_ctx->nb_streams);
 
   // get all AVCodecContext
   for (int i = 0; i < demuxer->fmt_ctx->nb_streams; ++i) {
-    Media *media = (Media *) malloc(sizeof(Media));
+    auto *media = (Media *) malloc(sizeof(Media));
     media->stream_id = i;
     media->stream = demuxer->fmt_ctx->streams[i];
     media->media_type = media->stream->codecpar->codec_type;
@@ -140,7 +140,7 @@ void demux(Demuxer *demuxer, DEMUX_CALLBACK callback) {
   AVPacket pkt;
   av_init_packet(&pkt);
   pkt.size = 0;
-  pkt.data = NULL;
+  pkt.data = nullptr;
 
   while (av_read_frame(demuxer->fmt_ctx, &pkt) == 0) {
     AVPacket packet = pkt;

@@ -22,9 +22,12 @@ if (FFMPEG_FOUND)
     foreach (cflag ${FFMPEG_CFLAGS})
         message(STATUS "cflags: ${cflag}")
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${cflag}")
+        set(CMAKE_CXX_FLAGS )
     endforeach (cflag)
     foreach (ldflag ${FFMPEG_LDFLAGS})
         message(STATUS "ldflag: ${ldflag}")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ldflag}")
+        set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} ${ldflag}")
     endforeach (ldflag)
 endif ()
 
@@ -47,4 +50,4 @@ set(SOURCES src/main.cpp
 
 add_executable(VideoBox ${SOURCES})
 
-target_link_libraries(VideoBox ${FFMPEG_LDFLAGS} )
+#target_link_libraries(VideoBox ${FFMPEG_LDFLAGS} )
