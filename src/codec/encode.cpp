@@ -4,9 +4,7 @@
 
 #include "encode.h"
 
-
 int encode_packet(AVCodecContext *enc_ctx, AVFrame *frame, AVPacket *packet, ENCODE_CALLBACK callback) {
-  LOGD("encode_packet: start\n");
   int ret;
   ret = avcodec_send_frame(enc_ctx, frame);
   if (ret < 0) {

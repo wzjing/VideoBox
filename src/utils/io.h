@@ -16,10 +16,13 @@ extern "C" {
 #include <libavcodec/avcodec.h>
 }
 
-void read_yuv(FILE *file, AVFrame * frame, int width, int height, int index,
+void read_yuv(FILE *file, AVFrame *frame, int width, int height, int index,
               enum AVPixelFormat pix_fmt);
 
-void read_pcm(FILE *file, AVFrame * frame, int nb_samples, int channels, int index,
+void read_pcm(FILE *file, AVFrame *frame, int nb_samples, int channels, int index,
+              enum AVSampleFormat sample_fmt);
+
+void read_pcm_to_raw(FILE *file, uint8_t **data, int nb_samples, int channels, int index,
               enum AVSampleFormat sample_fmt);
 
 #endif //VIDEOBOX_IO_H

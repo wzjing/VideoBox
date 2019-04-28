@@ -43,8 +43,6 @@ static void log_packet(AVStream *stream, const AVPacket *pkt) {
 }
 
 static int write_frame(AVFormatContext *fmt_ctx, const AVRational *time_base, AVStream *stream, AVPacket *pkt) {
-//  LOGD("origin_pts: %ld origin_dts: %ld\n", pkt->pts, pkt->dts);
-  LOGD("write_frame()\n");
   av_packet_rescale_ts(pkt, *time_base, stream->time_base);
   if (av_compare_ts(pkt->pts, stream->time_base,
                     STREAM_DURATION, (AVRational) {1, 1}) > 0) {
@@ -275,7 +273,6 @@ static AVFrame *get_audio_frame(OutputStream *ost, FILE *audio_file) {
 }
 
 static int encode(AVFormatContext *fmt_ctx, OutputStream *stream, AVFrame *frame) {
-  LOGD("encode stream: %d\n", stream->stream->index);
   AVPacket packet = {nullptr};
   av_init_packet(&packet);
   int ret = 1;
@@ -364,8 +361,6 @@ void mux_encode(const char *filename, const char *video_source, const char *audi
     } else {
       break;
     }
-    LOGD("Video[%d]: %8ld Audio[%d]: %8ld\n", encode_video, video_stream.next_pts,
-         encode_audio, audio_stream.next_pts);
     LOGD("---------------------------------end-----------------------------\n");
   }
 

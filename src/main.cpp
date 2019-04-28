@@ -5,6 +5,7 @@
 #include "utils/io.h"
 #include "demux_decode.h"
 #include "mux_encode.h"
+#include "resample.h"
 
 int main(int argc, char *argv[]) {
 
@@ -14,6 +15,9 @@ int main(int argc, char *argv[]) {
       return 0;
     } else if (strcmp(argv[1], "mux") == 0) {
       mux_encode(argv[2], argv[3], argv[4]);
+      return 0;
+    } else if (strcmp(argv[1], "resample") == 0) {
+      resample(argv[2], argv[3], argv[4]);
       return 0;
     } else if (strcmp(argv[1], "io") == 0) {
       FILE *file = fopen(argv[2], "rb");
@@ -48,20 +52,6 @@ int main(int argc, char *argv[]) {
       fclose(file);
       return 0;
     } else if (strcmp(argv[1], "test") == 0) {
-      int video = 1, audio = 1;
-      int i = 0;
-      while (video || audio) {
-        i++;
-        if (i == 5) {
-          video = 0;
-          continue;
-        } else if (i == 10) {
-          audio = 0;
-          continue;
-        }
-        printf("i %d\n", i);
-      }
-
       return 0;
     }
   }

@@ -41,7 +41,9 @@ set(SOURCES src/main.cpp
         src/mux_encode.cpp
         src/mux_encode.h
         src/utils/io.cpp
-        src/utils/io.h src/resample.c src/resample.h)
+        src/utils/io.h
+        src/resample.cpp
+        src/resample.h)
 
 add_executable(VideoBox ${SOURCES})
 
