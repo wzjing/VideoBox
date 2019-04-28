@@ -8,8 +8,6 @@ include(FindPkgConfig)
 
 add_definitions(-DDEBUG -D__STDC_FORMAT_MACROS)
 
-#set(CMAKE_C_FLAGS "-fblocks")
-
 if (${PKG_CONFIG_FOUND})
     message(STATUS "found pkg-config ${PKG_CONFIG_VERSION_STRING} in ${PKG_CONFIG_EXECUTABLE}")
 else ()
@@ -22,14 +20,11 @@ if (FFMPEG_FOUND)
     foreach (cflag ${FFMPEG_CFLAGS})
         message(STATUS "cflags: ${cflag}")
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${cflag}")
-        set(CMAKE_CXX_FLAGS )
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${cflag}")
     endforeach (cflag)
-    foreach (ldflag ${FFMPEG_LDFLAGS})
-        message(STATUS "ldflag: ${ldflag}")
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ldflag}")
-        set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} ${ldflag}")
-    endforeach (ldflag)
 endif ()
+
+message(STATUS ${FFMPEG_INCLUDE_DIRS})
 
 set(SOURCES src/main.cpp
         src/muxing/demuxing.cpp
@@ -46,8 +41,8 @@ set(SOURCES src/main.cpp
         src/mux_encode.cpp
         src/mux_encode.h
         src/utils/io.cpp
-        src/utils/io.h)
+        src/utils/io.h src/resample.c src/resample.h)
 
 add_executable(VideoBox ${SOURCES})
 
-#target_link_libraries(VideoBox ${FFMPEG_LDFLAGS} )
+target_link_libraries(VideoBox ${FFMPEG_LIBRARIES} )

@@ -8,7 +8,7 @@
 
 int main(int argc, char *argv[]) {
 
-  if (argc > 1) {
+  if (argc >= 1) {
     if (strcmp(argv[1], "demux") == 0) {
       demux_decode(argv[2], argv[3], argv[4]);
       return 0;
@@ -48,17 +48,21 @@ int main(int argc, char *argv[]) {
       fclose(file);
       return 0;
     } else if (strcmp(argv[1], "test") == 0) {
-      AVFrame *frame = av_frame_alloc();
-      frame->format = AV_SAMPLE_FMT_FLTP;
-      frame->nb_samples = 1024;
-      frame->channel_layout = AV_CH_LAYOUT_STEREO;
-      int ret = 0;
-      av_frame_get_buffer(frame, 0);
-      ret = av_frame_make_writable(frame);
-      LOGD("Frame writable: %d %s\n", ret, ret == 0 ? "TRUE" : "FALSE");
+      int video = 1, audio = 1;
+      int i = 0;
+      while (video || audio) {
+        i++;
+        if (i == 5) {
+          video = 0;
+          continue;
+        } else if (i == 10) {
+          audio = 0;
+          continue;
+        }
+        printf("i %d\n", i);
+      }
 
-      av_frame_unref(frame);
-      LOGD("Frame nb_samples: %d\n", frame->nb_samples);
+      return 0;
     }
   }
 
