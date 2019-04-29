@@ -43,7 +43,7 @@ set(SOURCES src/main.cpp
         src/utils/io.cpp
         src/utils/io.h
         src/resample.cpp
-        src/resample.h)
+        src/resample.h src/audio_filter.cpp src/audio_filter.h)
 
 add_executable(VideoBox ${SOURCES})
 

@@ -47,14 +47,14 @@ void read_pcm(FILE *file, AVFrame *frame, int nb_samples, int channels, int inde
     LOGE("read_pcm: AVFrame is not writable\n");
     return;
   }
-  frame->nb_samples = nb_samples;
-  frame->channels = channels;
-  if (channels == 1) {
-    frame->channel_layout = AV_CH_LAYOUT_MONO;
-  } else if (channels == 2) {
-    frame->channel_layout = AV_CH_LAYOUT_STEREO;
-  }
-  frame->format = sample_fmt;
+//  frame->nb_samples = nb_samples;
+//  frame->channels = channels;
+//  if (channels == 1) {
+//    frame->channel_layout = AV_CH_LAYOUT_MONO;
+//  } else if (channels == 2) {
+//    frame->channel_layout = AV_CH_LAYOUT_STEREO;
+//  }
+//  frame->format = sample_fmt;
 
   int sample_size = av_get_bytes_per_sample(sample_fmt);
   switch (sample_fmt) {
@@ -67,6 +67,7 @@ void read_pcm(FILE *file, AVFrame *frame, int nb_samples, int channels, int inde
           memcpy(frame->data[ch] + i * sample_size, buf + ch * sample_size, sample_size);
         }
       }
+      LOGD("got frame\n");
       break;
     case AV_SAMPLE_FMT_U8:
       LOGD("TBD..\n");
