@@ -268,7 +268,7 @@ static AVFrame *get_audio_frame(OutputStream *ost, FILE *audio_file) {
            (AVSampleFormat) ost->frame->format);
 
   ost->frame->pts = ost->next_pts;
-  ost->next_pts += ost->nb_samples;
+  ost->next_pts += ost->frame->nb_samples;
   return ost->frame;
 }
 
@@ -288,7 +288,7 @@ static int encode(AVFormatContext *fmt_ctx, OutputStream *stream, AVFrame *frame
 
 void mux_encode(const char *filename, const char *video_source, const char *audio_source) {
   OutputStream video_stream = {}, audio_stream = {};
-  AVOutputFormat *fmt;
+//  AVOutputFormat *fmt;
   AVFormatContext *fmt_ctx;
   AVCodec *video_codec, *audio_codec;
   int ret = 0;
@@ -303,16 +303,16 @@ void mux_encode(const char *filename, const char *video_source, const char *audi
     exit(1);
   }
 
-  fmt = fmt_ctx->oformat;
+//  fmt = fmt_ctx->oformat;
 
-  if (fmt->video_codec != AV_CODEC_ID_NONE) {
-    add_stream(&video_stream, fmt_ctx, &video_codec, fmt->video_codec);
+  if (fmt_ctx->oformat->video_codec != AV_CODEC_ID_NONE) {
+    add_stream(&video_stream, fmt_ctx, &video_codec, fmt_ctx->oformat->video_codec);
     have_video = 1;
     encode_video = 1;
   }
 
-  if (fmt->audio_codec != AV_CODEC_ID_NONE) {
-    add_stream(&audio_stream, fmt_ctx, &audio_codec, fmt->audio_codec);
+  if (fmt_ctx->oformat->audio_codec != AV_CODEC_ID_NONE) {
+    add_stream(&audio_stream, fmt_ctx, &audio_codec, fmt_ctx->oformat->audio_codec);
     have_audio = 1;
     encode_audio = 1;
   }
@@ -327,7 +327,7 @@ void mux_encode(const char *filename, const char *video_source, const char *audi
 
   av_dump_format(fmt_ctx, 0, filename, 1);
 
-  if (!(fmt->flags & AVFMT_NOFILE)) {
+  if (!(fmt_ctx->oformat->flags & AVFMT_NOFILE)) {
     LOGD("Opening file: %s\n", filename);
     ret = avio_open(&fmt_ctx->pb, filename, AVIO_FLAG_WRITE);
     if (ret < 0) {
@@ -373,7 +373,7 @@ void mux_encode(const char *filename, const char *video_source, const char *audi
     close_stream(&audio_stream);
   }
 
-  if (!(fmt->flags & AVFMT_NOFILE)) {
+  if (!(fmt_ctx->oformat->flags & AVFMT_NOFILE)) {
     avio_closep(&fmt_ctx->pb);
   }
 

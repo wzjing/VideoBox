@@ -25,15 +25,15 @@ Media *get_media(AVFormatContext *fmt_ctx, enum AVMediaType media_type, AVDictio
   auto *media = (Media *) malloc(sizeof(Media));
   media->media_type = media_type;
 
-  media->stream_id = av_find_best_stream(fmt_ctx, media_type, -1, -1, nullptr, 0);
+  media->stream_idx = av_find_best_stream(fmt_ctx, media_type, -1, -1, nullptr, 0);
 
-  if (media->stream_id >= 0) {
-    media->stream = fmt_ctx->streams[media->stream_id];
+  if (media->stream_idx >= 0) {
+    media->stream = fmt_ctx->streams[media->stream_idx];
     AVCodec *codec = avcodec_find_decoder(media->stream->codecpar->codec_id);
 
     if (!codec) {
       LOGE("get_media: failed to find codec of stream %d %s",
-           media->stream_id, av_get_media_type_string(media_type));
+           media->stream_idx, av_get_media_type_string(media_type));
       return nullptr;
     }
 
@@ -41,19 +41,19 @@ Media *get_media(AVFormatContext *fmt_ctx, enum AVMediaType media_type, AVDictio
 
     if (!media->codec_ctx) {
       LOGE("get_media: failed to allocate memory for AVCodecContext of %d %s",
-           media->stream_id, av_get_media_type_string(media_type));
+           media->stream_idx, av_get_media_type_string(media_type));
       return nullptr;
     }
 
     if (avcodec_parameters_to_context(media->codec_ctx, media->stream->codecpar)) {
       LOGE("get_media: failed to copy parameters to AVCodecContext of %d %s",
-           media->stream_id, av_get_media_type_string(media_type));
+           media->stream_idx, av_get_media_type_string(media_type));
       return nullptr;
     }
 
     if (avcodec_open2(media->codec_ctx, codec, &opt) < 0) {
       LOGE("get_media: failed to open AVCodecContext of %d %s",
-           media->stream_id, av_get_media_type_string(media_type));
+           media->stream_idx, av_get_media_type_string(media_type));
       return nullptr;
     }
 
@@ -94,7 +94,7 @@ Demuxer *get_demuxer(const char *filename, AVDictionary *fmt_open_opt, AVDiction
   // get all AVCodecContext
   for (int i = 0; i < demuxer->fmt_ctx->nb_streams; ++i) {
     auto *media = (Media *) malloc(sizeof(Media));
-    media->stream_id = i;
+    media->stream_idx = i;
     media->stream = demuxer->fmt_ctx->streams[i];
     media->media_type = media->stream->codecpar->codec_type;
 
@@ -102,7 +102,7 @@ Demuxer *get_demuxer(const char *filename, AVDictionary *fmt_open_opt, AVDiction
 
     if (!codec) {
       LOGE("get_media: failed to find codec of stream %d %s\n",
-           media->stream_id, av_get_media_type_string(media->media_type));
+           media->stream_idx, av_get_media_type_string(media->media_type));
       free(media);
       continue;
     }
@@ -111,21 +111,21 @@ Demuxer *get_demuxer(const char *filename, AVDictionary *fmt_open_opt, AVDiction
 
     if (!media->codec_ctx) {
       LOGE("get_media: failed to allocate memory for AVCodecContext of %d %s\n",
-           media->stream_id, av_get_media_type_string(media->media_type));
+           media->stream_idx, av_get_media_type_string(media->media_type));
       free(media);
       continue;
     }
 
     if (avcodec_parameters_to_context(media->codec_ctx, media->stream->codecpar)) {
       LOGE("get_media: failed to copy parameters to AVCodecContext of %d %s\n",
-           media->stream_id, av_get_media_type_string(media->media_type));
+           media->stream_idx, av_get_media_type_string(media->media_type));
       free(media);
       continue;
     }
 
     if (avcodec_open2(media->codec_ctx, codec, &codec_opt) < 0) {
       LOGE("get_media: failed to open AVCodecContext of %d %s\n",
-           media->stream_id, av_get_media_type_string(media->media_type));
+           media->stream_idx, av_get_media_type_string(media->media_type));
       free(media);
       continue;
     }

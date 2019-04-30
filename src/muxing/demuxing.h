@@ -6,6 +6,7 @@
 #define VIDEOBOX_DEMUXING_H
 
 #include "../utils/log.h"
+#include <functional>
 
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -13,20 +14,20 @@ extern "C" {
 }
 
 typedef struct Media {
-  unsigned int stream_id;
-  enum AVMediaType media_type;
-  AVCodecContext *codec_ctx;
-  AVStream *stream;
+    unsigned int stream_idx;
+    enum AVMediaType media_type;
+    AVCodecContext *codec_ctx;
+    AVStream *stream;
 } Media;
 
 typedef struct Demuxer {
-  AVFormatContext *fmt_ctx;
-  Media **media;
-  unsigned int media_count;
+    AVFormatContext *fmt_ctx;
+    Media **media;
+    unsigned int media_count;
 } Demuxer;
 
 
-typedef void (*DEMUX_CALLBACK)(AVPacket *packet);
+typedef const std::function<void(AVPacket *packet)> &DEMUX_CALLBACK;
 
 Demuxer *get_demuxer(const char *filename, AVDictionary *fmt_open_opt, AVDictionary *fmt_stream_opt,
                      AVDictionary *codec_opt);

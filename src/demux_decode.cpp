@@ -87,12 +87,12 @@ void save_audio(AVFrame *frame) {
 }
 
 void demux_callback(AVPacket *packet) {
-  if (packet && packet->stream_index == video_media->stream_id) {
+  if (packet && packet->stream_index == video_media->stream_idx) {
     int ret = 0;
     do {
       ret = decode_packet(video_media->codec_ctx, video_frame, packet, save_video);
     } while (ret);
-  } else if (packet && packet->stream_index == audio_media->stream_id) {
+  } else if (packet && packet->stream_index == audio_media->stream_idx) {
     int ret = 0;
     do {
       ret = decode_packet(audio_media->codec_ctx, audio_frame, packet, save_audio);
