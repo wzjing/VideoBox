@@ -14,7 +14,7 @@ else ()
     message(FATAL_ERROR "no pkg-config found, please install pkg-config and add libraries")
 endif ()
 
-pkg_check_modules(FFMPEG libavcodec libavutil libavformat libavfilter libavdevice libswscale libswresample)
+pkg_check_modules(FFMPEG libavcodec libavutil libavformat libavfilter libavdevice libswscale libswresample x264)
 
 if (FFMPEG_FOUND)
     foreach (cflag ${FFMPEG_CFLAGS})
@@ -43,7 +43,11 @@ set(SOURCES src/main.cpp
         src/utils/io.cpp
         src/utils/io.h
         src/resample.cpp
-        src/resample.h src/audio_filter.cpp src/audio_filter.h)
+        src/resample.h
+        src/audio_filter.cpp
+        src/audio_filter.h
+        src/x264_encode.cpp
+        src/x264_encode.h)
 
 add_executable(VideoBox ${SOURCES})
 
