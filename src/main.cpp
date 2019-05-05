@@ -8,6 +8,7 @@
 #include "mux_encode.h"
 #include "resample.h"
 #include "audio_filter.h"
+#include "x264_encode.h"
 
 int main(int argc, char *argv[]) {
 
@@ -24,6 +25,8 @@ int main(int argc, char *argv[]) {
     } else if (strcmp(argv[1], "audio_filter") == 0) {
       audio_filter(argv[2], argv[3], argv[4]);
       return 0;
+    } else if(strcmp(argv[1], "x264_encode") == 0) {
+      return encode(argv[2], argv[3]);
     } else if (strcmp(argv[1], "io") == 0) {
       FILE *file = fopen(argv[2], "rb");
       FILE *result = fopen(argv[3], "wb");
