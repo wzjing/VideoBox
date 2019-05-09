@@ -10,6 +10,11 @@
 #include "audio_filter.h"
 #include "x264_encode.h"
 
+extern "C" {
+#include <libavformat/avformat.h>
+#include <libavutil/avutil.h>
+}
+
 int main(int argc, char *argv[]) {
 
   if (argc >= 1) {
@@ -63,14 +68,42 @@ int main(int argc, char *argv[]) {
       fclose(result);
       fclose(file);
       return 0;
-    } else if (strcmp(argv[1], "test") == 0) {
-      AVDictionary *opt;
-      av_dict_set(&opt, "sample_rate", "44100", 0);
-      av_dict_set(&opt, "sample_fmt", "FLTP", 0);
-      assert(opt != nullptr);
-      printf("count: %d\n", av_dict_count(opt));
-      if (opt)
-        av_dict_free(&opt);
+    } else if (strcmp(argv[1], "av_dic") == 0) {
+//      AVDictionary *opt;
+//      av_dict_set(&opt, "sample_rate", "44100", 0);
+//      av_dict_set(&opt, "sample_fmt", "FLTP", 0);
+//      assert(opt != nullptr);
+//      printf("count: %d\n", av_dict_count(opt));
+//      if (opt)
+//        av_dict_free(&opt);
+      return 0;
+    } else if (strcmp(argv[1], "h264") == 0) {
+      int ret = 0;
+      AVFormatContext* fmt_ctx;
+      LOGD("filename: %s\n", argv[2]);
+      ret = avformat_open_input(&fmt_ctx, argv[2], nullptr, nullptr);
+      if (ret < 0) {
+        LOGE("get_demuxer: Could not open source file %s %s\n", argv[2], av_err2str(ret));
+        return -1;
+      }
+
+      if (avformat_find_stream_info(fmt_ctx, nullptr) < 0) {
+        LOGE("get_demuxer: Could not find stream information\n");
+        return -1;
+      }
+
+      int have_video = 0;
+      for (int i = 0; i < fmt_ctx->nb_streams; ++i) {
+        if (fmt_ctx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+          have_video = 1;
+          break;
+        }
+      }
+      if (!have_video) {
+        LOGE("unable to read video from h264 file: %s\n", argv[2]);
+        return -1;
+      }
+      LOGD("got h264\n");
       return 0;
     }
   }

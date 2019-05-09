@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 11)
 
 include(FindPkgConfig)
 
-add_definitions(-DDEBUG -D__STDC_FORMAT_MACROS)
+add_definitions(-DDEBUG -D__STDC_FORMAT_MACROS -D__STDC_CONSTANT_MACROS)
 
 if (${PKG_CONFIG_FOUND})
     message(STATUS "found pkg-config ${PKG_CONFIG_VERSION_STRING} in ${PKG_CONFIG_EXECUTABLE}")
@@ -47,7 +47,7 @@ set(SOURCES src/main.cpp
         src/audio_filter.cpp
         src/audio_filter.h
         src/x264_encode.cpp
-        src/x264_encode.h)
+        src/x264_encode.h src/multi-mux.cpp src/multi-mux.h)
 
 add_executable(VideoBox ${SOURCES})
 
