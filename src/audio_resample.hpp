@@ -2,7 +2,10 @@
 // Created by android1 on 2019/4/28.
 //
 
-#include "resample.h"
+#ifndef VIDEOBOX_AUDIO_RESAMPLE_HPP
+#define VIDEOBOX_AUDIO_RESAMPLE_HPP
+
+#include "audio_resample.hpp"
 #include <cstdio>
 #include "utils/log.h"
 #include "utils/io.h"
@@ -14,7 +17,7 @@ extern "C" {
 #include <libswresample/swresample.h>
 }
 
-void resample(const char *source_a, const char *source_b, const char *result) {
+int resample(const char *source_a, const char *source_b, const char *result) {
 
   int ret;
   int nb_samples = 1024 * 180;
@@ -39,7 +42,7 @@ void resample(const char *source_a, const char *source_b, const char *result) {
 
   if (!swr_ctx) {
     LOGE("Error alloc context\n");
-    exit(1);
+    return -1;
   }
 
   av_opt_set_int(swr_ctx, "in_channel_layout", AV_CH_LAYOUT_4POINT0, 0);
@@ -52,7 +55,7 @@ void resample(const char *source_a, const char *source_b, const char *result) {
 
   if (swr_init(swr_ctx) < 0) {
     LOGE("Error init context\n");
-    goto end;
+    return -1;
   }
 
   dst_nb_samples = av_rescale_rnd(nb_samples, sample_rate, sample_rate, AV_ROUND_UP);
@@ -62,7 +65,7 @@ void resample(const char *source_a, const char *source_b, const char *result) {
 
   if (ret < 0) {
     LOGE("Error while convert: %s\n", av_err2str(ret));
-    goto end;
+    return -1;
   }
 
   LOGD("Dst samples: %ld\n", dst_nb_samples);
@@ -80,4 +83,7 @@ void resample(const char *source_a, const char *source_b, const char *result) {
   fclose(file_a);
   fclose(file_b);
   fclose(result_file);
+  return 1;
 }
+
+#endif //VIDEOBOX_AUDIO_RESAMPLE_HPP

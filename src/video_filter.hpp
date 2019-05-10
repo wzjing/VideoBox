@@ -1,0 +1,8 @@
+//
+// Created by android1 on 2019/5/10.
+//
+
+#ifndef VIDEOBOX_VIDEO_FILTER_HPP
+#define VIDEOBOX_VIDEO_FILTER_HPP
+
+#endif //VIDEOBOX_VIDEO_FILTER_HPP

@@ -12,7 +12,7 @@ extern "C" {
 #include <libavutil/timestamp.h>
 }
 
-void free_demuxer(Demuxer *demuxer) {
+void free_demuxer(Muxer *demuxer) {
   for (int i = 0; i < demuxer->fmt_ctx->nb_streams; ++i) {
     if (demuxer->media[i]) {
       avcodec_free_context(&demuxer->media[i]->codec_ctx);
@@ -65,14 +65,14 @@ Media *get_media(AVFormatContext *fmt_ctx, enum AVMediaType media_type, AVDictio
   }
 }
 
-Demuxer *get_demuxer(const char *filename, AVDictionary *fmt_open_opt, AVDictionary *fmt_stream_opt,
-                     AVDictionary *codec_opt) {
-  auto *demuxer = (Demuxer *) malloc(sizeof(Demuxer));
+Muxer *get_demuxer(const char *filename, AVDictionary *fmt_open_opt, AVDictionary *fmt_stream_opt,
+                   AVDictionary *codec_opt) {
+  auto *demuxer = (Muxer *) malloc(sizeof(Muxer));
   demuxer->fmt_ctx = nullptr;
-  demuxer->media_count = 0;
+  demuxer->nb_media = 0;
 
   int ret = 0;
-  ret = avformat_open_input(&demuxer->fmt_ctx, filename, nullptr, &fmt_open_opt);
+  ret = avformat_open_input(&(demuxer->fmt_ctx), filename, nullptr, &fmt_open_opt);
   if (ret < 0) {
     LOGE("get_demuxer: Could not open source file %s %s\n", filename, av_err2str(ret));
     return nullptr;
@@ -130,13 +130,13 @@ Demuxer *get_demuxer(const char *filename, AVDictionary *fmt_open_opt, AVDiction
       continue;
     }
     demuxer->media[i] = media;
-    demuxer->media_count++;
+    demuxer->nb_media++;
   }
 
   return demuxer;
 }
 
-void demux(Demuxer *demuxer, DEMUX_CALLBACK callback) {
+void demux(Muxer *demuxer, DEMUX_CALLBACK callback) {
   AVPacket pkt;
   av_init_packet(&pkt);
   pkt.size = 0;

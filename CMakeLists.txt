@@ -27,28 +27,28 @@ endif ()
 message(STATUS ${FFMPEG_INCLUDE_DIRS})
 
 set(SOURCES src/main.cpp
-        src/muxing/demuxing.cpp
-        src/muxing/muxing.cpp
         src/codec/decode.cpp
         src/codec/encode.cpp
+        src/muxing/mux_comman.h
+        src/muxing/demuxing.cpp
+        src/muxing/muxing.cpp
         src/muxing/concat.cpp
         src/muxing/concat.h
         src/utils/snapshot.cpp
         src/utils/snapshot.h
         src/utils/log.h
-        src/demux_decode.cpp
-        src/demux_decode.h
-        src/mux_encode.cpp
-        src/mux_encode.h
         src/utils/io.cpp
         src/utils/io.h
-        src/resample.cpp
-        src/resample.h
-        src/audio_filter.cpp
-        src/audio_filter.h
-        src/x264_encode.cpp
-        src/x264_encode.h src/multi-mux.cpp src/multi-mux.h)
+        src/demux_decode.hpp
+        src/mux_encode.hpp
+        src/multi-mux.hpp
+        src/audio_resample.hpp
+        src/audio_filter.hpp
+        src/video_filter.hpp
+        src/video_encode_x264.hpp
+        src/test/test_io.hpp
+        )
 
 add_executable(VideoBox ${SOURCES})
 
-target_link_libraries(VideoBox ${FFMPEG_LIBRARIES} )
+target_link_libraries(VideoBox ${FFMPEG_LIBRARIES})

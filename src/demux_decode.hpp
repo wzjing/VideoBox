@@ -2,7 +2,14 @@
 // Created by android1 on 2019/4/25.
 //
 
-#include "demux_decode.h"
+#ifndef VIDEOBOX_DEMUX_DECODE_HPP
+#define VIDEOBOX_DEMUX_DECODE_HPP
+
+//
+// Created by android1 on 2019/4/25.
+//
+
+#include "demux_decode.hpp"
 #include "muxing/demuxing.h"
 #include "codec/decode.h"
 #include "utils/snapshot.h"
@@ -14,14 +21,13 @@ extern "C" {
 }
 
 static const char *frame_name;
-static FILE *video_file;
-static FILE *audio_file;
+
 
 static Media *video_media;
 static Media *audio_media;
 static AVFrame *video_frame;
 static AVFrame *audio_frame;
-static Demuxer *demuxer;
+static Muxer *demuxer;
 
 // Additional image format convert
 static struct SwsContext *sws_ctx = nullptr;
@@ -60,53 +66,52 @@ void saveAsYUV(AVFrame *frame) {
   LOGD("Frame saved\n");
 }
 
-void save_video(AVFrame *frame) {
+void save_video(AVFrame *frame, FILE *file) {
   if (!frame) return;
   LOGD("Saving video frame: %02d\n", video_media->codec_ctx->frame_number);
-  long start = ftell(video_file);
   for (int i = 0; i < frame->height; i++) {
-    fwrite(frame->data[0] + frame->linesize[0] * i, 1, frame->linesize[0], video_file);
+    fwrite(frame->data[0] + frame->linesize[0] * i, 1, frame->linesize[0], file);
   }
-  start = ftell(video_file);
   for (int i = 0; i < frame->height / 2; i++) {
-    fwrite(frame->data[1] + frame->linesize[1] * i, 1, frame->linesize[1], video_file);
+    fwrite(frame->data[1] + frame->linesize[1] * i, 1, frame->linesize[1], file);
   }
-  start = ftell(video_file);
   for (int i = 0; i < frame->height / 2; i++) {
-    fwrite(frame->data[2] + frame->linesize[2] * i, 1, frame->linesize[2], video_file);
+    fwrite(frame->data[2] + frame->linesize[2] * i, 1, frame->linesize[2], file);
   }
 }
 
-void save_audio(AVFrame *frame) {
+void save_audio(AVFrame *frame, FILE *file) {
   LOGD("Saving audio frame: %02d nb_samples(%d)\n", audio_media->codec_ctx->frame_number, frame->nb_samples);
   int data_size = av_get_bytes_per_sample(audio_media->codec_ctx->sample_fmt);
   for (int i = 0; i < frame->nb_samples; ++i) {
     for (int ch = 0; ch < frame->channels; ch++)
-      fwrite(frame->data[ch] + data_size * i, 1, data_size, audio_file);
+      fwrite(frame->data[ch] + data_size * i, 1, data_size, file);
   }
 }
 
-void demux_callback(AVPacket *packet) {
-  if (packet && packet->stream_index == video_media->stream_idx) {
-    int ret = 0;
-    do {
-      ret = decode_packet(video_media->codec_ctx, video_frame, packet, save_video);
-    } while (ret);
-  } else if (packet && packet->stream_index == audio_media->stream_idx) {
-    int ret = 0;
-    do {
-      ret = decode_packet(audio_media->codec_ctx, audio_frame, packet, save_audio);
-      LOGD("Decoding audio frame: %d\n", audio_media->codec_ctx->frame_number);
-    } while (ret);
-  }
-}
+//void demux_callback(AVPacket *packet) {
+//  if (packet && packet->stream_index == video_media->stream_idx) {
+//    int ret = 0;
+//    do {
+//      ret = decode_packet(video_media->codec_ctx, video_frame, packet, save_video);
+//    } while (ret);
+//  } else if (packet && packet->stream_index == audio_media->stream_idx) {
+//    int ret = 0;
+//    do {
+//      ret = decode_packet(audio_media->codec_ctx, audio_frame, packet, [](AVFrame * frame)->void{
+//        save_audio
+//      });
+//      LOGD("Decoding audio frame: %d\n", audio_media->codec_ctx->frame_number);
+//    } while (ret);
+//  }
+//}
 
-void demux_decode(const char *input_filename, const char *output_video_name, const char *output_audio_name) {
+int demux_decode(const char *input_filename, const char *output_video_name, const char *output_audio_name) {
   demuxer = get_demuxer(input_filename, nullptr, nullptr, nullptr);
   video_frame = av_frame_alloc();
   audio_frame = av_frame_alloc();
   // find media
-  for (int i = 0; i < demuxer->media_count; ++i) {
+  for (int i = 0; i < demuxer->nb_media; ++i) {
     LOGD("stream: %d\n", i);
     if (demuxer->media[i]->media_type == AVMEDIA_TYPE_VIDEO) {
       video_media = demuxer->media[i];
@@ -119,15 +124,34 @@ void demux_decode(const char *input_filename, const char *output_video_name, con
 
   if (!video_media) {
     LOGE("Cant find any video stream\n");
+    return -1;
   }
 
   if (!audio_media) {
     LOGE("Cant find any audio stream\n");
+    return -1;
   }
 
-  video_file = fopen(output_video_name, "wb");
-  audio_file = fopen(output_audio_name, "wb");
-  demux(demuxer, demux_callback);
+  FILE *video_file = fopen(output_video_name, "wb");
+  FILE *audio_file = fopen(output_audio_name, "wb");
+  demux(demuxer, [&video_file, &audio_file](AVPacket *packet) -> void {
+    if (packet && packet->stream_index == video_media->stream_idx) {
+      int ret = 0;
+      do {
+        ret = decode_packet(video_media->codec_ctx, video_frame, packet, [&video_file](AVFrame *frame) -> void {
+          save_video(frame, video_file);
+        });
+      } while (ret);
+    } else if (packet && packet->stream_index == audio_media->stream_idx) {
+      int ret = 0;
+      do {
+        ret = decode_packet(audio_media->codec_ctx, audio_frame, packet, [&audio_file](AVFrame *frame) -> void {
+          save_audio(frame, audio_file);
+        });
+        LOGD("Decoding audio frame: %d\n", audio_media->codec_ctx->frame_number);
+      } while (ret);
+    }
+  });
 
   // flush
   if (video_media)
@@ -143,4 +167,9 @@ void demux_decode(const char *input_filename, const char *output_video_name, con
   free_demuxer(demuxer);
   av_frame_free(&video_frame);
   av_frame_free(&audio_frame);
+
+  return 0;
 }
+
+
+#endif //VIDEOBOX_DEMUX_DECODE_HPP

@@ -2,7 +2,14 @@
 // Created by android1 on 2019/4/29.
 //
 
-#include "audio_filter.h"
+#ifndef VIDEOBOX_AUDIO_FILTER_HPP
+#define VIDEOBOX_AUDIO_FILTER_HPP
+
+//
+// Created by android1 on 2019/4/29.
+//
+
+#include "audio_filter.hpp"
 #include "utils/log.h"
 #include "utils/io.h"
 
@@ -59,7 +66,7 @@ void get_frame(FILE *file, AVFrame *frame, int index) {
 }
 
 
-void audio_filter(const char *source_a, const char *source_b, const char *result) {
+int audio_filter(const char *source_a, const char *source_b, const char *result) {
   AVFilterGraph *filter_graph;
   AVFilterContext *buffer_a_ctx, *buffer_b_ctx, *volume_a_ctx, *volume_b_ctx, *mix_ctx, *format_ctx, *sink_ctx;
   const AVFilter *buffer_a, *buffer_b, *volume_a, *volume_b, *mix, *format, *sink;
@@ -72,7 +79,7 @@ void audio_filter(const char *source_a, const char *source_b, const char *result
   filter_graph = avfilter_graph_alloc();
   if (!filter_graph) {
     LOGE("unable to create filter graph\n");
-    exit(1);
+    return -1;
   }
   av_get_channel_layout_string(ch_layout, sizeof(ch_layout), 0, AV_CH_LAYOUT_STEREO);
   sprintf(sample_fmt, "%d", AV_SAMPLE_FMT_FLTP);
@@ -127,7 +134,7 @@ void audio_filter(const char *source_a, const char *source_b, const char *result
   ret = avfilter_graph_config(filter_graph, nullptr);
   if (ret < 0) {
     LOGE("unable to configure filter graph: %s\n", av_err2str(ret));
-    exit(1);
+    return -1;
   }
   printf("Graph: %s\n", avfilter_graph_dump(filter_graph, nullptr));
 
@@ -183,4 +190,8 @@ void audio_filter(const char *source_a, const char *source_b, const char *result
   fclose(source_a_file);
   fclose(source_b_file);
   fclose(result_file);
+
+  return 0;
 }
+
+#endif //VIDEOBOX_AUDIO_FILTER_HPP

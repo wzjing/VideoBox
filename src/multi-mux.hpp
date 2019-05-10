@@ -2,7 +2,14 @@
 // Created by android1 on 2019/5/9.
 //
 
-#include "multi-mux.h"
+#ifndef VIDEOBOX_MULTI_MUX_HPP
+#define VIDEOBOX_MULTI_MUX_HPP
+
+//
+// Created by android1 on 2019/5/9.
+//
+
+#include "multi-mux.hpp"
 #include "utils/log.h"
 
 extern "C" {
@@ -11,36 +18,36 @@ extern "C" {
 #include <libavformat/avformat.h>
 }
 
-typedef struct MediaConfig {
-    AVMediaType media_type;
-    AVCodecID codec_id;
-
-    // Pixel format for video, sample format for audio
-    int format;
-
-    // bit rate decide the quality, higher is better
-    int64_t bit_rate;
-
-    // only for audio
-    int sample_rate; // frame rate in byte: 44100, 48000...
-    int nb_samples; // samples per frame: 1024 for aac
-    int64_t channel_layout;  // channel layout
-
-    // only for video
-    int height;
-    int width;
-    int frame_rate; // frames per second
-    int gop_size;
-} MediaConfig;
-
-typedef struct Media {
-    uint stream_idx;
-    AVMediaType media_type;
-    AVCodecContext *codec_ctx;
-    AVStream *stream;
-    int64_t next_pts;
-    AVFrame *frame;
-} Media;
+//typedef struct MediaConfig {
+//  AVMediaType media_type;
+//  AVCodecID codec_id;
+//
+//  // Pixel format for video, sample format for audio
+//  int format;
+//
+//  // bit rate decide the quality, higher is better
+//  int64_t bit_rate;
+//
+//  // only for audio
+//  int sample_rate; // frame rate in byte: 44100, 48000...
+//  int nb_samples; // samples per frame: 1024 for aac
+//  int64_t channel_layout;  // channel layout
+//
+//  // only for video
+//  int height;
+//  int width;
+//  int frame_rate; // frames per second
+//  int gop_size;
+//} MediaConfig;
+//
+//typedef struct Media {
+//  uint stream_idx;
+//  AVMediaType media_type;
+//  AVCodecContext *codec_ctx;
+//  AVStream *stream;
+//  int64_t next_pts;
+//  AVFrame *frame;
+//} Media;
 
 Media *add_media(AVFormatContext *fmt_ctx, MediaConfig *config) {
 
@@ -244,14 +251,14 @@ int mux_multi(char **video_source, char **audio_source,
   video_config.frame_rate = 30;
   video_config.gop_size = 12;
   Media *video_media = add_media(fmt_ctx, &video_config);
-//  audio_config.media_type = AVMEDIA_TYPE_AUDIO;
-//  audio_config.codec_id = AV_CODEC_ID_AAC;
-//  audio_config.format = AV_SAMPLE_FMT_S16P;
-//  audio_config.bit_rate = 320;
-//  audio_config.sample_rate = 44100;
-//  audio_config.nb_samples = 1024;
-//  audio_config.channel_layout = AV_CH_LAYOUT_STEREO;
-//  Media *audio_media = add_media(fmt_ctx, &audio_config);
+  audio_config.media_type = AVMEDIA_TYPE_AUDIO;
+  audio_config.codec_id = AV_CODEC_ID_AAC;
+  audio_config.format = AV_SAMPLE_FMT_S16P;
+  audio_config.bit_rate = 320;
+  audio_config.sample_rate = 44100;
+  audio_config.nb_samples = 1024;
+  audio_config.channel_layout = AV_CH_LAYOUT_STEREO;
+  Media *audio_media = add_media(fmt_ctx, &audio_config);
 
   if (!(fmt_ctx->oformat->flags & AVFMT_NOFILE)) {
     LOGD("Opening file: %s\n", result);
@@ -341,3 +348,6 @@ int mux_multi(char **video_source, char **audio_source,
 
   return 0;
 }
+
+
+#endif //VIDEOBOX_MULTI_MUX_HPP

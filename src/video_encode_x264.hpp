@@ -2,10 +2,13 @@
 // Created by wzjing on 2019/4/30.
 //
 
+#ifndef VIDEOBOX_VIDEO_ENCODE_X264_HPP
+#define VIDEOBOX_VIDEO_ENCODE_X264_HPP
+
 #include <cstdio>
 #include <cstdlib>
 #include <stdint.h>
-#include "x264_encode.h"
+#include "video_encode_x264.hpp"
 #include "utils/log.h"
 
 extern "C" {
@@ -81,3 +84,5 @@ int encode(const char *source, const char *result) {
 
   return 0;
 }
+
+#endif //VIDEOBOX_VIDEO_ENCODE_X264_HPP

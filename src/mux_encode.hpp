@@ -2,6 +2,13 @@
 // Created by android1 on 2019/4/25.
 //
 
+#ifndef VIDEOBOX_MUX_ENCODE_HPP
+#define VIDEOBOX_MUX_ENCODE_HPP
+
+//
+// Created by android1 on 2019/4/25.
+//
+
 #include <cstdio>
 
 extern "C" {
@@ -15,7 +22,7 @@ extern "C" {
 #include <libswresample/swresample.h>
 }
 
-#include "mux_encode.h"
+#include "mux_encode.hpp"
 #include "utils/log.h"
 #include "utils/io.h"
 #include "codec/encode.h"
@@ -286,7 +293,7 @@ static int encode(AVFormatContext *fmt_ctx, OutputStream *stream, AVFrame *frame
   return ret && encode_ret != AVERROR_EOF;
 }
 
-void mux_encode(const char *filename, const char *video_source, const char *audio_source) {
+int mux_encode(const char *filename, const char *video_source, const char *audio_source) {
   OutputStream video_stream = {}, audio_stream = {};
 //  AVOutputFormat *fmt;
   AVFormatContext *fmt_ctx;
@@ -332,14 +339,14 @@ void mux_encode(const char *filename, const char *video_source, const char *audi
     ret = avio_open(&fmt_ctx->pb, filename, AVIO_FLAG_WRITE);
     if (ret < 0) {
       LOGE("could not open %s (%s)\n", filename, av_err2str(ret));
-      return;
+      return -1;
     }
   }
 
   ret = avformat_write_header(fmt_ctx, &opt);
   if (ret < 0) {
     LOGE("error occurred when opening output file %s", av_err2str(ret));
-    return;
+    return -1;
   }
 
   FILE *video_file = fopen(video_source, "rb");
@@ -378,4 +385,7 @@ void mux_encode(const char *filename, const char *video_source, const char *audi
   }
 
   avformat_free_context(fmt_ctx);
+  return 0;
 }
+
+#endif //VIDEOBOX_MUX_ENCODE_HPP
