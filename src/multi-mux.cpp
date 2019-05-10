@@ -12,34 +12,34 @@ extern "C" {
 }
 
 typedef struct MediaConfig {
-  AVMediaType media_type;
-  AVCodecID codec_id;
+    AVMediaType media_type;
+    AVCodecID codec_id;
 
-  // Pixel format for video, sample format for audio
-  int format;
+    // Pixel format for video, sample format for audio
+    int format;
 
-  // bit rate decide the quality, higher is better
-  int64_t bit_rate;
+    // bit rate decide the quality, higher is better
+    int64_t bit_rate;
 
-  // only for audio
-  int sample_rate; // frame rate in byte: 44100, 48000...
-  int nb_samples; // samples per frame: 1024 for aac
-  int64_t channel_layout;  // channel layout
+    // only for audio
+    int sample_rate; // frame rate in byte: 44100, 48000...
+    int nb_samples; // samples per frame: 1024 for aac
+    int64_t channel_layout;  // channel layout
 
-  // only for video
-  int height;
-  int width;
-  int frame_rate; // frames per second
-  int gop_size;
+    // only for video
+    int height;
+    int width;
+    int frame_rate; // frames per second
+    int gop_size;
 } MediaConfig;
 
 typedef struct Media {
-  uint stream_idx;
-  AVMediaType media_type;
-  AVCodecContext *codec_ctx;
-  AVStream *stream;
-  int64_t next_pts;
-  AVFrame *frame;
+    uint stream_idx;
+    AVMediaType media_type;
+    AVCodecContext *codec_ctx;
+    AVStream *stream;
+    int64_t next_pts;
+    AVFrame *frame;
 } Media;
 
 Media *add_media(AVFormatContext *fmt_ctx, MediaConfig *config) {
@@ -167,7 +167,6 @@ Media *add_media(AVFormatContext *fmt_ctx, MediaConfig *config) {
 
 int open_h264(const char *filename, AVFormatContext *fmt_ctx) {
   int ret = 0;
-  AVInputFormat *in_fmt;
   ret = avformat_open_input(&fmt_ctx, filename, nullptr, nullptr);
   if (ret < 0) {
     LOGE("get_demuxer: Could not open source file %s %s\n", filename, av_err2str(ret));
@@ -186,11 +185,12 @@ int open_h264(const char *filename, AVFormatContext *fmt_ctx) {
       break;
     }
   }
+
   if (!have_video) {
     LOGE("unable to read video from h264 file: %s\n", filename);
     return -1;
   }
-
+  return 0;
 }
 
 static void log_packet(AVStream *stream, const AVPacket *pkt) {
@@ -217,9 +217,9 @@ static int write_packet(AVFormatContext *fmt_ctx, const AVRational *time_base, A
   return 0;
 }
 
-void mux_multi(const char **video_source, const char **audio_source,
-               const char *result) {
-  AVFormatContext *fmt_ctx;
+int mux_multi(char **video_source, char **audio_source,
+              char *result) {
+  AVFormatContext *fmt_ctx = nullptr;
   int ret = 0;
 
   avformat_alloc_output_context2(&fmt_ctx, nullptr, nullptr, result);
@@ -230,81 +230,114 @@ void mux_multi(const char **video_source, const char **audio_source,
     ret = avio_open(&fmt_ctx->pb, result, AVIO_FLAG_WRITE);
     if (ret < 0) {
       LOGE("could not open %s (%s)\n", result, av_err2str(ret));
-      return;
+      return -1;
     }
   }
   MediaConfig video_config;
-  MediaConfig audio_config;
+//  MediaConfig audio_config;
   video_config.media_type = AVMEDIA_TYPE_VIDEO;
   video_config.codec_id = AV_CODEC_ID_H264;
-  video_config.width = 1080;
-  video_config.height = 1920;
+  video_config.width = 720;
+  video_config.height = 1280;
   video_config.bit_rate = 72200000;
   video_config.format = AV_PIX_FMT_YUV420P;
   video_config.frame_rate = 30;
   video_config.gop_size = 12;
   Media *video_media = add_media(fmt_ctx, &video_config);
-  audio_config.media_type = AVMEDIA_TYPE_AUDIO;
-  audio_config.codec_id = AV_CODEC_ID_AAC;
-  audio_config.format = AV_SAMPLE_FMT_S16P;
-  audio_config.bit_rate = 320;
-  audio_config.sample_rate = 44100;
-  audio_config.nb_samples = 1024;
-  audio_config.channel_layout = AV_CH_LAYOUT_STEREO;
-  Media *audio_media = add_media(fmt_ctx, &audio_config);
+//  audio_config.media_type = AVMEDIA_TYPE_AUDIO;
+//  audio_config.codec_id = AV_CODEC_ID_AAC;
+//  audio_config.format = AV_SAMPLE_FMT_S16P;
+//  audio_config.bit_rate = 320;
+//  audio_config.sample_rate = 44100;
+//  audio_config.nb_samples = 1024;
+//  audio_config.channel_layout = AV_CH_LAYOUT_STEREO;
+//  Media *audio_media = add_media(fmt_ctx, &audio_config);
 
   if (!(fmt_ctx->oformat->flags & AVFMT_NOFILE)) {
     LOGD("Opening file: %s\n", result);
     ret = avio_open(&fmt_ctx->pb, result, AVIO_FLAG_WRITE);
     if (ret < 0) {
       LOGE("could not open %s (%s)\n", result, av_err2str(ret));
-      return;
+      return -1;
     }
   }
 
   ret = avformat_write_header(fmt_ctx, nullptr);
   if (ret < 0) {
     LOGE("error occurred when opening output file %s", av_err2str(ret));
-    return;
+    return -1;
   }
 
-  FILE *video_file = fopen(video_source[0], "rb");
-  FILE *audio_file = fopen(audio_source[0], "rb");
+//  FILE *video_file = fopen(video_source[0], "rb");
+//  FILE *audio_file = fopen(audio_source[0], "rb");
 
   AVFormatContext *v_fmt_ctx = nullptr;
-  ret = open_h264(video_source[0], v_fmt_ctx);
+  ret = avformat_open_input(&v_fmt_ctx, video_source[0], nullptr, nullptr);
   if (ret < 0) {
-    LOGE("could not open video source");
-    return;
+    LOGE("get_demuxer: Could not open source file %s %s\n", video_source[0], av_err2str(ret));
+    return -1;
   }
+
+  if (avformat_find_stream_info(v_fmt_ctx, nullptr) < 0) {
+    LOGE("get_demuxer: Could not find stream information\n");
+    return -1;
+  }
+
+  int have_video = 0;
+  for (int i = 0; i < v_fmt_ctx->nb_streams; ++i) {
+    if (v_fmt_ctx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+      have_video = 1;
+      break;
+    }
+  }
+
+  if (!have_video) {
+    LOGE("unable to read video from h264 file: %s\n", video_source[0]);
+    return -1;
+  }
+
+  LOGD("streams: %d\n", v_fmt_ctx->nb_streams);
 
   int encode_video = 1;
   int encode_audio = 1;
   AVPacket v_pkt;
   int64_t video_pts = 0;
-  while (encode_video || encode_audio) {
-    if (encode_video && av_compare_ts(video_media->next_pts,
-                                      video_media->codec_ctx->time_base,
-                                      audio_media->next_pts,
-                                      audio_media->codec_ctx->time_base) <= 0) {
-      // TODO: write video
-      ret = av_read_frame(v_fmt_ctx, &v_pkt);
-      if (ret != 0) {
-        LOGD("Video EOF");
-        encode_video = 0;
-        continue;
-      }
-      AVPacket packet = v_pkt;
-
-      ret = write_packet(fmt_ctx, &video_media->codec_ctx->time_base, video_media->stream, &packet);
-      if (ret != 0) {
-        LOGE("error write video packet");
-        break;
-      }
-      video_pts++;
-      av_packet_unref(&packet);
-    } else {
-      // TODO: write audio
+  while (true) {
+//    if (encode_video && av_compare_ts(video_media->next_pts,
+//                                      video_media->codec_ctx->time_base,
+//                                      audio_media->next_pts,
+//                                      audio_media->codec_ctx->time_base) <= 0) {
+    ret = av_read_frame(v_fmt_ctx, &v_pkt);
+    if (ret != 0) {
+      LOGD("Video EOF");
+      break;
     }
+    v_pkt.pts = video_pts;
+    v_pkt.dts = video_pts;
+    video_pts++;
+    AVPacket packet = v_pkt;
+
+    ret = write_packet(fmt_ctx, &video_media->codec_ctx->time_base, video_media->stream, &packet);
+    if (ret != 0) {
+      LOGE("error write video packet");
+      break;
+    }
+    video_pts++;
+    av_packet_unref(&packet);
+//    } else {
+//      // TODO: write audio
+//    }
   }
+
+  av_write_trailer(fmt_ctx);
+
+  // free AVCodecContext and AVFrame
+
+  if (!(fmt_ctx->oformat->flags & AVFMT_NOFILE)) {
+    avio_closep(&fmt_ctx->pb);
+  }
+
+  avformat_free_context(fmt_ctx);
+
+  return 0;
 }

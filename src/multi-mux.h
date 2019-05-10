@@ -5,6 +5,6 @@
 #ifndef VIDEOBOX_MULTI_MUX_H
 #define VIDEOBOX_MULTI_MUX_H
 
-void mux_multi(const char **video_source, const char **audio_source, const char *result);
+int mux_multi(char **video_source, char **audio_source, char *result);
 
 #endif //VIDEOBOX_MULTI_MUX_H

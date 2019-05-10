@@ -6,13 +6,14 @@
 #define VIDEOBOX_DECODE_H
 
 #include "../utils/log.h"
+#include <functional>
 
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavutil/imgutils.h>
 }
 
-typedef void (*DECODE_CALLBACK)(AVFrame *frame);
+typedef const std::function<void(AVFrame *frame)> &DECODE_CALLBACK;
 
 int decode_packet(AVCodecContext *dec_ctx, AVFrame *frame, AVPacket *pkt, DECODE_CALLBACK callback);
 
