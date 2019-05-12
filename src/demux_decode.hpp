@@ -10,7 +10,7 @@
 //
 
 #include "demux_decode.hpp"
-#include "muxing/demuxing.h"
+#include "mux/demux.h"
 #include "codec/decode.h"
 #include "utils/snapshot.h"
 #include "utils/log.h"

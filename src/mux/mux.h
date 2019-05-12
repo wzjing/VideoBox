@@ -2,8 +2,8 @@
 // Created by Infinity on 2019-04-20.
 //
 
-#ifndef VIDEOBOX_MUXING_H
-#define VIDEOBOX_MUXING_H
+#ifndef VIDEOBOX_MUX_H
+#define VIDEOBOX_MUX_H
 
 #include <functional>
 
@@ -20,4 +20,4 @@ int mux(Muxer *muxer, MUX_CALLBACK callback);
 
 void close_muxer(Muxer *muxer);
 
-#endif //VIDEOBOX_MUXING_H
+#endif //VIDEOBOX_MUX_H

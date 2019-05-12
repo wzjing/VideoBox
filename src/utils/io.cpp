@@ -19,9 +19,13 @@ int read_yuv(FILE *file, AVFrame *frame, int width, int height, int index,
 
   switch (pix_fmt) {
     case AV_PIX_FMT_YUV420P:
+      if (feof(file)) {
+        LOGD("reach file eof\n");
+        return -1;
+      }
       ret = fseeko(file, width * height * 3 / 2 * index, SEEK_SET);
       if (ret != 0) {
-        LOGD("seek file error: %d\n", ret);
+//        LOGD("seek file error: %d\n", ret);
         return -1;
       }
       frame->linesize[0] = width;
@@ -33,6 +37,7 @@ int read_yuv(FILE *file, AVFrame *frame, int width, int height, int index,
       fread(frame->data[0], 1, width * height, file);
       fread(frame->data[1], 1, width * height / 4, file);
       fread(frame->data[2], 1, width * height / 4, file);
+//      LOGD("video frame-> #%d fmt: %d size: %dx%d eof: %d\n", index, pix_fmt, width, height, feof(file));
       return 0;
     case AV_PIX_FMT_RGB24:
       fseeko(file, width * height * 3 * index, SEEK_SET);
@@ -41,17 +46,21 @@ int read_yuv(FILE *file, AVFrame *frame, int width, int height, int index,
       fread(frame->data[0], 1, width * height * 3, file);
       return 0;
     default:
-      LOGE("unknown pixel format\n");
-      return 0;
+      LOGE("unknown pixel format: %d\n", pix_fmt);
+      return -1;
   }
 }
 
 int read_pcm(FILE *file, AVFrame *frame, int nb_samples, int channels, int index,
              enum AVSampleFormat sample_fmt) {
   int ret = 0;
+  if (feof(file)) {
+    LOGD("reach file eof\n");
+    return -1;
+  }
   if (!av_frame_is_writable(frame)) {
     LOGE("read_pcm: AVFrame is not writable\n");
-    return 0;
+    return -1;
   }
 //  frame->nb_samples = nb_samples;
 //  frame->channels = channels;
@@ -67,7 +76,7 @@ int read_pcm(FILE *file, AVFrame *frame, int nb_samples, int channels, int index
     case AV_SAMPLE_FMT_FLTP:
       ret = fseeko(file, channels * sample_size * nb_samples * index, SEEK_SET);
       if (ret != 0) {
-        LOGD("seek file error: %d\n", ret);
+//        LOGD("seek file error: %d\n", ret);
         return -1;
       }
       for (int i = 0; i < nb_samples; ++i) {
@@ -77,16 +86,16 @@ int read_pcm(FILE *file, AVFrame *frame, int nb_samples, int channels, int index
           memcpy(frame->data[ch] + i * sample_size, buf + ch * sample_size, sample_size);
         }
       }
-      LOGD("got frame\n");
-      break;
+//      LOGD("audio frame-> #%d fmt: %d nb_samples: %d channels: %d eof: %d\n", index, sample_fmt, nb_samples, channels,
+//           feof(file));
+      return 0;
     case AV_SAMPLE_FMT_S16P:
       LOGD("TBD..\n");
-      break;
+      return -1;
     default:
-      LOGE("unknown sample format\n");
-      break;
+      LOGE("unknown sample format: %s\n", av_get_sample_fmt_name(sample_fmt));
+      return -1;
   }
-  return 0;
 }
 
 void

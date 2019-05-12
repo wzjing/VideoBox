@@ -290,7 +290,7 @@ static int encode(AVFormatContext *fmt_ctx, OutputStream *stream, AVFrame *frame
     }
   };
   int encode_ret = encode_packet(stream->codec_ctx, frame, &packet, cb);
-  return ret && encode_ret != AVERROR_EOF;
+  return ret && encode_ret != 1;
 }
 
 int mux_encode(const char *filename, const char *video_source, const char *audio_source) {

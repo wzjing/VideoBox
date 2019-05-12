@@ -2,8 +2,8 @@
 // Created by Infinity on 2019-04-20.
 //
 
-#ifndef VIDEOBOX_DEMUXING_H
-#define VIDEOBOX_DEMUXING_H
+#ifndef VIDEOBOX_DEMUX_H
+#define VIDEOBOX_DEMUX_H
 
 #include "../utils/log.h"
 #include <functional>
@@ -19,4 +19,4 @@ void demux(Muxer *demuxer, DEMUX_CALLBACK callback);
 
 void free_demuxer(Muxer *demuxer);
 
-#endif //VIDEOBOX_DEMUXING_H
+#endif //VIDEOBOX_DEMUX_H

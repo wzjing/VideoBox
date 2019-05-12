@@ -7,7 +7,9 @@
 int encode_packet(AVCodecContext *enc_ctx, AVFrame *frame, AVPacket *packet, ENCODE_CALLBACK callback) {
   int ret;
   ret = avcodec_send_frame(enc_ctx, frame);
-  if (ret < 0) {
+  if (ret == AVERROR_EOF) {
+    ret = 1;
+  } else if (ret < 0) {
     LOGE("encode_packet: error sending frame\n");
     exit(1);
   }
@@ -15,14 +17,14 @@ int encode_packet(AVCodecContext *enc_ctx, AVFrame *frame, AVPacket *packet, ENC
   while (ret >= 0) {
     ret = avcodec_receive_packet(enc_ctx, packet);
     if (ret == AVERROR(EAGAIN)) {
-      LOGD("Try again\n");
-      return ret;
+//      LOGD("Try again\n");
+      return 0;
     } else if (ret == AVERROR_EOF) {
-      LOGD("EOF\n");
-      return ret;
+//      LOGD("EOF\n");
+      return 1;
     } else if (ret < 0) {
       LOGE("encode_packet: error receive packet\n");
-      exit(1);
+      return -1;
     }
 
     callback(packet);

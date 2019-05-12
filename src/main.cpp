@@ -12,7 +12,7 @@
 #include "video_encode_x264.hpp"
 //#include "multi-mux.hpp"
 #include "test/test_io.hpp"
-#include "muxing/muxing.h"
+#include "mux/mux.h"
 
 extern "C" {
 #include <libavformat/avformat.h>
@@ -28,15 +28,15 @@ int main(int argc, char *argv[]) {
 
   if (argc >= 1) {
     if (check("demux")) return demux_decode(argv[2], argv[3], argv[4]);
+    else if (check("mux_exp")) return mux_encode(argv[2], argv[3], argv[4]);
     else if (check("mux")) {
-//      return mux_encode(argv[2], argv[3], argv[4]);
-      Muxer *muxer = open_muxer(argv[4]);
+      Muxer *muxer = open_muxer(argv[2]);
       MediaConfig video_config;
       video_config.media_type = AVMEDIA_TYPE_VIDEO;
       video_config.codec_id = AV_CODEC_ID_H264;
-      video_config.width = 1280;
-      video_config.height = 720;
-      video_config.bit_rate = 72200000;
+      video_config.width = 1920;
+      video_config.height = 1080;
+      video_config.bit_rate = 4000000;
       video_config.format = AV_PIX_FMT_YUV420P;
       video_config.frame_rate = 30;
       video_config.gop_size = 12;
@@ -44,14 +44,17 @@ int main(int argc, char *argv[]) {
       MediaConfig audio_config;
       audio_config.media_type = AVMEDIA_TYPE_AUDIO;
       audio_config.codec_id = AV_CODEC_ID_AAC;
-      audio_config.format = AV_SAMPLE_FMT_S16P;
-      audio_config.bit_rate = 320;
+      audio_config.format = AV_SAMPLE_FMT_FLTP;
+      audio_config.bit_rate = 128000;
       audio_config.sample_rate = 44100;
       audio_config.nb_samples = 1024;
       audio_config.channel_layout = AV_CH_LAYOUT_STEREO;
       Media *audio = add_media(muxer, &audio_config);
-      FILE *v_file = fopen(argv[2], "rb");
-      FILE *a_file = fopen(argv[3], "rb");
+
+      av_dump_format(muxer->fmt_ctx, 0, muxer->output_filename, 1);
+
+      FILE *v_file = fopen(argv[3], "rb");
+      FILE *a_file = fopen(argv[4], "rb");
       mux(muxer, [&video, &audio, &v_file, &a_file](AVFrame *frame, int type) -> bool {
         int ret = 0;
         if (type == AVMEDIA_TYPE_VIDEO) {
@@ -61,14 +64,14 @@ int main(int argc, char *argv[]) {
           ret = read_pcm(a_file, frame, frame->nb_samples, frame->channels, audio->codec_ctx->frame_number,
                          (AVSampleFormat) frame->format);
         }
-        return ret == 0;
+        return ret != 0;
       });
 
       fclose(v_file);
       fclose(a_file);
 
       close_muxer(muxer);
-
+      return 0;
     } else if (check("resample")) return resample(argv[2], argv[3], argv[4]);
     else if (check("audio_filter")) return audio_filter(argv[2], argv[3], argv[4]);
     else if (check("x264_encode")) return encode(argv[2], argv[3]);

@@ -29,16 +29,12 @@ message(STATUS ${FFMPEG_INCLUDE_DIRS})
 set(SOURCES src/main.cpp
         src/codec/decode.cpp
         src/codec/encode.cpp
-        src/muxing/mux_comman.h
-        src/muxing/demuxing.cpp
-        src/muxing/muxing.cpp
-        src/muxing/concat.cpp
-        src/muxing/concat.h
+        src/mux/mux_comman.h
+        src/mux/demux.cpp
+        src/mux/mux.cpp
+        src/mux/concat.cpp
         src/utils/snapshot.cpp
-        src/utils/snapshot.h
-        src/utils/log.h
         src/utils/io.cpp
-        src/utils/io.h
         src/demux_decode.hpp
         src/mux_encode.hpp
         src/multi-mux.hpp

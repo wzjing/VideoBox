@@ -49,6 +49,7 @@ int test_io(char *input_filename, char *dest_filename) {
 
   fclose(result);
   fclose(file);
+  return 0;
 }
 
 #endif //VIDEOBOX_TEST_IO_HPP

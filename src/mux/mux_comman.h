@@ -38,8 +38,11 @@ typedef struct Media {
   AVMediaType media_type;
   AVCodecContext *codec_ctx;
   AVStream *stream;
-  int64_t next_pts;
   AVFrame *frame;
+  int64_t next_pts;
+  int64_t next_dts;
+  bool input_eof = false;
+  bool output_eof = false;
 } Media;
 
 typedef struct Muxer {
