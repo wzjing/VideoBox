@@ -12,11 +12,11 @@
 //
 typedef const std::function<int(AVFrame *frame, int available_media_type)> &MUX_CALLBACK;
 
-Muxer *open_muxer(const char *out_filename);
+Muxer *create_muxer(const char *out_filename);
 
-Media* add_media(Muxer *muxer, MediaConfig *config);
+Media* add_media(Muxer *muxer, MediaConfig *config, AVDictionary *codec_opt);
 
-int mux(Muxer *muxer, MUX_CALLBACK callback);
+int mux(Muxer *muxer, MUX_CALLBACK callback, AVDictionary * opt);
 
 void close_muxer(Muxer *muxer);
 

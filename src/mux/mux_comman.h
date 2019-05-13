@@ -34,15 +34,14 @@ typedef struct MediaConfig {
 } MediaConfig;
 
 typedef struct Media {
-  uint stream_idx;
-  AVMediaType media_type;
-  AVCodecContext *codec_ctx;
-  AVStream *stream;
-  AVFrame *frame;
-  int64_t next_pts;
-  int64_t next_dts;
-  bool input_eof = false;
-  bool output_eof = false;
+  uint stream_idx = 0;
+  AVMediaType media_type = AVMEDIA_TYPE_UNKNOWN;
+  AVCodecContext *codec_ctx = nullptr;
+  AVStream *stream = nullptr;
+  AVFrame *frame = nullptr;
+  int64_t next_pts = 0;
+  int input_eof = false;
+  int output_eof = false;
 } Media;
 
 typedef struct Muxer {

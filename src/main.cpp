@@ -26,11 +26,14 @@ int main(int argc, char *argv[]) {
     return strcmp(argv[1], command) == 0;
   };
 
+  LOGD("configure: %s\n", avcodec_configuration());
+
   if (argc >= 1) {
     if (check("demux")) return demux_decode(argv[2], argv[3], argv[4]);
     else if (check("mux_exp")) return mux_encode(argv[2], argv[3], argv[4]);
     else if (check("mux")) {
-      Muxer *muxer = open_muxer(argv[2]);
+      int ret = 0;
+      Muxer *muxer = create_muxer(argv[2]);
       MediaConfig video_config;
       video_config.media_type = AVMEDIA_TYPE_VIDEO;
       video_config.codec_id = AV_CODEC_ID_H264;
@@ -40,37 +43,157 @@ int main(int argc, char *argv[]) {
       video_config.format = AV_PIX_FMT_YUV420P;
       video_config.frame_rate = 30;
       video_config.gop_size = 12;
-      Media *video = add_media(muxer, &video_config);
-      MediaConfig audio_config;
-      audio_config.media_type = AVMEDIA_TYPE_AUDIO;
-      audio_config.codec_id = AV_CODEC_ID_AAC;
-      audio_config.format = AV_SAMPLE_FMT_FLTP;
-      audio_config.bit_rate = 128000;
-      audio_config.sample_rate = 44100;
-      audio_config.nb_samples = 1024;
-      audio_config.channel_layout = AV_CH_LAYOUT_STEREO;
-      Media *audio = add_media(muxer, &audio_config);
+      Media *video = add_media(muxer, &video_config, nullptr);
+//      MediaConfig audio_config;
+//      audio_config.media_type = AVMEDIA_TYPE_AUDIO;
+//      audio_config.codec_id = AV_CODEC_ID_AAC;
+//      audio_config.format = AV_SAMPLE_FMT_FLTP;
+//      audio_config.bit_rate = 64000;
+//      audio_config.sample_rate = 44100;
+//      audio_config.nb_samples = 1024;
+//      audio_config.channel_layout = AV_CH_LAYOUT_STEREO;
+//      Media *audio = add_media(muxer, &audio_config, nullptr);
+      Media *audio = nullptr;
 
-      av_dump_format(muxer->fmt_ctx, 0, muxer->output_filename, 1);
+      AVFormatContext *fmt_ctx = muxer->fmt_ctx;
+
+      av_dump_format(fmt_ctx, 0, muxer->output_filename, 1);
 
       FILE *v_file = fopen(argv[3], "rb");
       FILE *a_file = fopen(argv[4], "rb");
-      mux(muxer, [&video, &audio, &v_file, &a_file](AVFrame *frame, int type) -> bool {
-        int ret = 0;
-        if (type == AVMEDIA_TYPE_VIDEO) {
-          ret = read_yuv(v_file, frame, frame->width, frame->height, video->codec_ctx->frame_number,
-                         (AVPixelFormat) frame->format);
-        } else if (type == AVMEDIA_TYPE_AUDIO) {
-          ret = read_pcm(a_file, frame, frame->nb_samples, frame->channels, audio->codec_ctx->frame_number,
-                         (AVSampleFormat) frame->format);
+//      mux(muxer, [&video, &audio, &v_file, &a_file](AVFrame *frame, int type) -> int {
+//        if (type == AVMEDIA_TYPE_VIDEO) {
+//          return read_yuv(v_file, frame, frame->width, frame->height, video->codec_ctx->frame_number,
+//                         (AVPixelFormat) frame->format);
+//        } else if (type == AVMEDIA_TYPE_AUDIO) {
+//          return read_pcm(a_file, frame, frame->nb_samples, frame->channels, audio->codec_ctx->frame_number,
+//                         (AVSampleFormat) frame->format);
+//        } else {
+//          return 1;
+//        }
+//      }, nullptr);
+
+
+      if (!(fmt_ctx->oformat->flags & AVFMT_NOFILE)) {
+        LOGD("Opening file: %s\n", argv[2]);
+        ret = avio_open(&fmt_ctx->pb, argv[2], AVIO_FLAG_WRITE);
+        if (ret < 0) {
+          LOGE("could not open %s (%s)\n", argv[2], av_err2str(ret));
+          return -1;
         }
-        return ret != 0;
-      });
+      }
+
+      ret = avformat_write_header(muxer->fmt_ctx, nullptr);
+      if (ret < 0) {
+        LOGE("error occurred when opening output file %s", av_err2str(ret));
+        return -1;
+      }
+
+      int encode_video = 1, encode_audio = 0;
+
+      while (encode_video || encode_audio) {
+        LOGD("---------------------------------start-----------------------------\n");
+        LOGD("Video[%d]: %8ld Audio[%d]\n", encode_video, video->next_pts,
+             encode_audio);
+        AVCodecContext *codec_ctx = nullptr;
+        AVStream *stream = nullptr;
+        AVFrame *frame = nullptr;
+        if (encode_video) {
+          codec_ctx = video->codec_ctx;
+          stream = video->stream;
+          frame = video->frame;
+          // GET Frame
+          if (av_compare_ts(video->next_pts, codec_ctx->time_base,
+                            STREAM_DURATION, (AVRational) {1, 1}) >= 0) {
+            frame = nullptr;
+          } else {
+            if (av_frame_make_writable(frame) < 0) {
+              LOGE("video frame not writable\n");
+              exit(1);
+            }
+
+            // frame data
+            read_yuv(v_file, frame, frame->width, frame->height, codec_ctx->frame_number,
+                     (AVPixelFormat) frame->format);
+
+            frame->pts = video->next_pts++;
+          }
+
+
+          AVPacket packet = {nullptr};
+          av_init_packet(&packet);
+
+          ret = encode_packet(codec_ctx, frame, &packet,
+                              [&fmt_ctx, &codec_ctx, &stream](AVPacket *pkt) -> int {
+                                if (pkt) {
+                                  return write_frame(fmt_ctx, &codec_ctx->time_base, stream,
+                                                     pkt);
+                                } else {
+                                  return 1;
+                                }
+                              });
+          encode_video = ret != 1;
+        } else if (encode_audio) {
+          codec_ctx = audio->codec_ctx;
+          stream = audio->stream;
+          frame = audio->frame;
+          // GET Frame
+          if (av_compare_ts(audio->next_pts, codec_ctx->time_base,
+                            STREAM_DURATION, (AVRational) {1, 1}) >= 0) {
+            frame = nullptr;
+          } else {
+            if (av_frame_make_writable(frame) < 0) {
+              LOGE("audio frame not writable\n");
+              exit(1);
+            }
+
+            // frame data
+            read_pcm(v_file, frame, frame->width, frame->height, codec_ctx->frame_number,
+                     (AVSampleFormat) frame->format);
+
+            frame->pts = audio->next_pts;
+            audio->next_pts += audio->frame->nb_samples;
+          }
+
+
+          AVPacket packet = {nullptr};
+          av_init_packet(&packet);
+
+          ret = encode_packet(codec_ctx, frame, &packet,
+                              [&fmt_ctx, &codec_ctx, &stream](AVPacket *pkt) -> int {
+                                if (pkt) {
+                                  return write_frame(fmt_ctx, &codec_ctx->time_base, stream,
+                                                     pkt);
+                                } else {
+                                  return 1;
+                                }
+                              });
+          encode_audio = ret != 1;
+        } else {
+          break;
+        }
+//        av_frame_unref(frame);
+        LOGD("---------------------------------end-----------------------------\n");
+      }
 
       fclose(v_file);
       fclose(a_file);
 
-      close_muxer(muxer);
+      av_write_trailer(fmt_ctx);
+
+      if (!(fmt_ctx->oformat->flags & AVFMT_NOFILE)) {
+        avio_closep(&fmt_ctx->pb);
+      }
+
+      for (int i = 0; i < muxer->nb_media; ++i) {
+        Media *media = muxer->media[i];
+        avcodec_free_context(&media->codec_ctx);
+        av_frame_free(&media->frame);
+      }
+
+      avformat_free_context(fmt_ctx);
+      LOGE("finished\n");
+
       return 0;
     } else if (check("resample")) return resample(argv[2], argv[3], argv[4]);
     else if (check("audio_filter")) return audio_filter(argv[2], argv[3], argv[4]);

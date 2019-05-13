@@ -21,7 +21,7 @@ int read_yuv(FILE *file, AVFrame *frame, int width, int height, int index,
     case AV_PIX_FMT_YUV420P:
       if (feof(file)) {
         LOGD("reach file eof\n");
-        return -1;
+        return 1;
       }
       ret = fseeko(file, width * height * 3 / 2 * index, SEEK_SET);
       if (ret != 0) {
@@ -56,7 +56,7 @@ int read_pcm(FILE *file, AVFrame *frame, int nb_samples, int channels, int index
   int ret = 0;
   if (feof(file)) {
     LOGD("reach file eof\n");
-    return -1;
+    return 1;
   }
   if (!av_frame_is_writable(frame)) {
     LOGE("read_pcm: AVFrame is not writable\n");
