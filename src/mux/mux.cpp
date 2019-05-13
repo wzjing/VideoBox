@@ -113,8 +113,8 @@ Media *add_media(Muxer *muxer, MediaConfig *config) {
       codec_ctx->sample_rate = config->sample_rate;
       codec_ctx->channel_layout = config->channel_layout;
       codec_ctx->channels = av_get_channel_layout_nb_channels(config->channel_layout);
-      codec_ctx->rc_min_rate = config->bit_rate;
-      codec_ctx->rc_max_rate = config->bit_rate;
+//      codec_ctx->rc_min_rate = config->bit_rate;
+//      codec_ctx->rc_max_rate = config->bit_rate;
       stream->time_base = (AVRational) {1, codec_ctx->sample_rate};
       codec_ctx->time_base = stream->time_base;
 
@@ -191,6 +191,11 @@ static int write_frame(AVFormatContext *fmt_ctx, const AVRational *time_base, AV
 
   log_packet(stream, pkt);
   av_packet_rescale_ts(pkt, *time_base, stream->time_base);
+//  if (av_compare_ts(pkt->pts, stream->time_base,
+//                    5000, (AVRational) {1, 1}) > 0) {
+//    LOGD("Stream #%d finished\n", stream->index);
+//    return 1;
+//  }
   pkt->stream_index = stream->index;
   log_packet(stream, pkt);
   int ret;
@@ -214,7 +219,11 @@ int mux(Muxer *muxer, MUX_CALLBACK callback) {
     }
   }
 
-  ret = avformat_write_header(muxer->fmt_ctx, nullptr);
+  AVDictionary *container_opts = nullptr;
+  av_dict_set(&container_opts, "movflags", "rtphint+faststart", 0);
+
+
+  ret = avformat_write_header(muxer->fmt_ctx, &container_opts);
   if (ret != 0) {
     LOGE("Error while write file header: %s\n", av_err2str(ret));
     return -1;
@@ -237,7 +246,7 @@ int mux(Muxer *muxer, MUX_CALLBACK callback) {
                                                   audio_media->codec_ctx->time_base) <= 0) {
       LOGD("Video PTS: %ld\n", video_media->next_pts);
       if (!video_media->input_eof) {
-        video_media->input_eof = callback(video_media->frame, AVMEDIA_TYPE_VIDEO);
+        video_media->input_eof = callback(video_media->frame, AVMEDIA_TYPE_VIDEO) || audio_media->input_eof;
         video_media->frame->pts = video_media->next_pts;
         video_media->next_pts++;
       } else {
@@ -245,9 +254,8 @@ int mux(Muxer *muxer, MUX_CALLBACK callback) {
 
       }
       ret = encode_packet(video_media->codec_ctx, video_media->input_eof ? nullptr : video_media->frame, muxer->packet,
-                          [&muxer, &video_media](AVPacket *packet) -> void {
-                            video_media->next_dts = packet->dts;
-                            write_frame(muxer->fmt_ctx, &video_media->codec_ctx->time_base, video_media->stream,
+                          [&muxer, &video_media](AVPacket *packet) -> int {
+                            return write_frame(muxer->fmt_ctx, &video_media->codec_ctx->time_base, video_media->stream,
                                         muxer->packet);
                           });
       LOGD("encode: %d\n", ret);
@@ -259,16 +267,15 @@ int mux(Muxer *muxer, MUX_CALLBACK callback) {
     } else {
       if (!audio_media->input_eof) {
         LOGD("Audio PTS: %ld\n", audio_media->next_pts);
-        audio_media->input_eof = callback(audio_media->frame, AVMEDIA_TYPE_AUDIO);
+        audio_media->input_eof = callback(audio_media->frame, AVMEDIA_TYPE_AUDIO) || video_media->input_eof;
         audio_media->frame->pts = audio_media->next_pts;
         audio_media->next_pts += audio_media->frame->nb_samples;
       } else {
         LOGD("Audio flush\n");
       }
       ret = encode_packet(audio_media->codec_ctx, audio_media->input_eof ? nullptr : audio_media->frame, muxer->packet,
-                          [&muxer, &audio_media](AVPacket *packet) -> void {
-                            audio_media->next_dts = packet->dts;
-                            write_frame(muxer->fmt_ctx, &audio_media->codec_ctx->time_base, audio_media->stream,
+                          [&muxer, &audio_media](AVPacket *packet) -> int {
+                            return write_frame(muxer->fmt_ctx, &audio_media->codec_ctx->time_base, audio_media->stream,
                                         muxer->packet);
                           });
       if (ret < 0) {

@@ -12,7 +12,7 @@ extern "C" {
 #include <libavcodec/avcodec.h>
 }
 
-typedef const std::function<void(AVPacket *pkt)> &ENCODE_CALLBACK;
+typedef const std::function<int(AVPacket *pkt)> &ENCODE_CALLBACK;
 
 int encode_packet(AVCodecContext *enc_ctx, AVFrame *frame, AVPacket *packet, ENCODE_CALLBACK callback);
 

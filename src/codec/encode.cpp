@@ -11,7 +11,22 @@ int encode_packet(AVCodecContext *enc_ctx, AVFrame *frame, AVPacket *packet, ENC
     ret = 1;
   } else if (ret < 0) {
     LOGE("encode_packet: error sending frame\n");
-    exit(1);
+    return -1;
+  }
+
+  ret = avcodec_receive_packet(enc_ctx, packet);
+  switch (ret) {
+    case 0:
+      return callback(packet);
+    case AVERROR(EAGAIN):
+      LOGD("try again\n");
+      return 0;
+    case AVERROR_EOF:
+      LOGD("eof\n");
+      return 1;
+    default:
+      LOGE("encode_packet: error sending frame: %s\n", av_err2str(ret));
+      return -1;
   }
 
   while (ret >= 0) {

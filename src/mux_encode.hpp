@@ -54,7 +54,7 @@ static int write_frame(AVFormatContext *fmt_ctx, const AVRational *time_base, AV
   if (av_compare_ts(pkt->pts, stream->time_base,
                     STREAM_DURATION, (AVRational) {1, 1}) > 0) {
     LOGD("Stream #%d finished\n", stream->index);
-    return 0;
+    return 1;
   }
   pkt->stream_index = stream->index;
   log_packet(stream, pkt);
@@ -64,7 +64,7 @@ static int write_frame(AVFormatContext *fmt_ctx, const AVRational *time_base, AV
     exit(1);
   }
 
-  return 1;
+  return 0;
 }
 
 static void add_stream(struct OutputStream *ost, AVFormatContext *fmt_ctx, AVCodec **codec, enum AVCodecID codec_id) {
@@ -283,14 +283,16 @@ static int encode(AVFormatContext *fmt_ctx, OutputStream *stream, AVFrame *frame
   AVPacket packet = {nullptr};
   av_init_packet(&packet);
   int ret = 1;
-  auto cb = [&ret, &fmt_ctx, &stream](AVPacket *pkt) -> void {
+  auto cb = [&ret, &fmt_ctx, &stream](AVPacket *pkt) -> int {
     if (pkt) {
-      ret = write_frame(fmt_ctx, &stream->codec_ctx->time_base, stream->stream,
+      return write_frame(fmt_ctx, &stream->codec_ctx->time_base, stream->stream,
                         pkt);
+    } else {
+      return 1;
     }
   };
   int encode_ret = encode_packet(stream->codec_ctx, frame, &packet, cb);
-  return ret && encode_ret != 1;
+  return encode_ret != 1;
 }
 
 int mux_encode(const char *filename, const char *video_source, const char *audio_source) {
