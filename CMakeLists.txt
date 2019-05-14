@@ -43,7 +43,11 @@ set(SOURCES src/main.cpp
         src/video_filter.hpp
         src/video_encode_x264.hpp
         src/test/test_io.hpp
-        src/mux/muxer.h src/mux/muxer.cpp src/test/test_mux.cpp)
+        src/mux/muxer.h
+        src/mux/muxer.cpp
+        src/test/test_mux.cpp
+        src/mux/Track.cpp
+        src/mux/Track.h src/filter/mix_filter.cpp src/filter/mix_filter.h src/filter/blur_filter.cpp src/filter/blur_filter.h)
 
 add_executable(VideoBox ${SOURCES})
 

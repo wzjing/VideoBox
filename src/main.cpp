@@ -13,6 +13,7 @@
 //#include "multi-mux.hpp"
 #include "test/test_io.hpp"
 #include "mux/mux.h"
+#include "mux/concat.h"
 
 extern "C" {
 #include <libavformat/avformat.h>
@@ -31,6 +32,7 @@ int main(int argc, char *argv[]) {
   if (argc >= 1) {
     if (check("demux")) return demux_decode(argv[2], argv[3], argv[4]);
     else if (check("mux_exp")) return mux_encode(argv[2], argv[3], argv[4]);
+    else if (check("concat")) return concat(argv[2], argv[3], argv[4]);
     else if (check("mux")) {
       Muxer *muxer = create_muxer(argv[2]);
       AVDictionary *video_opt = nullptr;
