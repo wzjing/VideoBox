@@ -13,6 +13,14 @@ Muxer *create_muxer(const char *out_filename) {
 
   avformat_alloc_output_context2(&fmt_ctx, nullptr, nullptr, out_filename);
 
+  if (!fmt_ctx) {
+    LOGE("could not alloc AVFormatContext for file: %s\n", out_filename);
+    goto error;
+  }
+
+  LOGD("Audio Codec: %s, Video Codec: %s\n", avcodec_get_name(fmt_ctx->oformat->audio_codec),
+       avcodec_get_name(fmt_ctx->oformat->video_codec));
+
   packet = av_packet_alloc();
 
   if (!packet) {
@@ -32,6 +40,7 @@ Muxer *create_muxer(const char *out_filename) {
 Media *add_media(Muxer *muxer, MediaConfig *config, AVDictionary *codec_opt) {
 
   int ret;
+  int nb_samples = 0;
   Media *media = nullptr;
   AVCodec *codec = nullptr;
   AVCodecContext *codec_ctx = nullptr;
@@ -62,6 +71,17 @@ Media *add_media(Muxer *muxer, MediaConfig *config, AVDictionary *codec_opt) {
     goto error;
   }
 
+  frame = av_frame_alloc();
+  // alloc frame
+  if (!frame) {
+    LOGE("unable to alloc frame\n");
+    goto error;
+  }
+
+  media->stream = stream;
+  media->codec_ctx = codec_ctx;
+  media->frame = frame;
+
   switch (config->media_type) {
     case AVMEDIA_TYPE_VIDEO:
       muxer->video_idx = muxer->nb_media;
@@ -75,22 +95,9 @@ Media *add_media(Muxer *muxer, MediaConfig *config, AVDictionary *codec_opt) {
       codec_ctx->gop_size = config->gop_size;
       codec_ctx->has_b_frames = 0;
 
-      ret = avcodec_open2(codec_ctx, codec, &opt);
+      ret = avcodec_open2(codec_ctx, codec, nullptr);
       if (ret < 0) {
         LOGE("unable to open codec: %s\n", av_err2str(ret));
-        goto error;
-      }
-
-      ret = avcodec_parameters_from_context(stream->codecpar, codec_ctx);
-      if (ret < 0) {
-        LOGE("unable to copy stream parameter to AVCodecContext: %s\n", av_err2str(ret));
-        goto error;
-      }
-
-      frame = av_frame_alloc();
-      // alloc frame
-      if (!frame) {
-        LOGE("unable to alloc frame\n");
         goto error;
       }
 
@@ -104,6 +111,12 @@ Media *add_media(Muxer *muxer, MediaConfig *config, AVDictionary *codec_opt) {
         goto error;
       }
 
+      ret = avcodec_parameters_from_context(stream->codecpar, codec_ctx);
+      if (ret < 0) {
+        LOGE("unable to copy stream parameter to AVCodecContext: %s\n", av_err2str(ret));
+        goto error;
+      }
+
       break;
     case AVMEDIA_TYPE_AUDIO:
       muxer->audio_idx = muxer->nb_media;
@@ -113,14 +126,28 @@ Media *add_media(Muxer *muxer, MediaConfig *config, AVDictionary *codec_opt) {
       codec_ctx->sample_rate = config->sample_rate;
       codec_ctx->channel_layout = config->channel_layout;
       codec_ctx->channels = av_get_channel_layout_nb_channels(config->channel_layout);
-//      codec_ctx->rc_min_rate = config->bit_rate;
-//      codec_ctx->rc_max_rate = config->bit_rate;
       stream->time_base = (AVRational) {1, codec_ctx->sample_rate};
       codec_ctx->time_base = stream->time_base;
 
-      ret = avcodec_open2(codec_ctx, codec, &opt);
+      ret = avcodec_open2(codec_ctx, codec, nullptr);
       if (ret < 0) {
         LOGE("unable to open codec: %s\n", av_err2str(ret));
+        goto error;
+      }
+
+      if (codec_ctx->codec->capabilities & AV_CODEC_CAP_VARIABLE_FRAME_SIZE) {
+        nb_samples = config->nb_samples;
+      } else {
+        nb_samples = codec_ctx->frame_size;
+      }
+
+      frame->format = (AVSampleFormat) config->format;
+      frame->channel_layout = config->channel_layout;
+      frame->nb_samples = nb_samples;
+
+      ret = av_frame_get_buffer(frame, 0);
+      if (ret < 0) {
+        LOGE("unable to alloc buffer for frame: %s\n", av_err2str(ret));
         goto error;
       }
 
@@ -130,22 +157,7 @@ Media *add_media(Muxer *muxer, MediaConfig *config, AVDictionary *codec_opt) {
         goto error;
       }
 
-      frame = av_frame_alloc();
-      if (!frame) {
-        LOGE("unable to alloc frame\n");
-        goto error;
-      }
-      frame->format = (AVSampleFormat) config->format;
-      frame->channel_layout = config->channel_layout;
-//      frame->channels = av_get_channel_layout_nb_channels(config->channel_layout);
-//      frame->sample_rate = config->sample_rate;
-      frame->nb_samples = config->nb_samples;
 
-      ret = av_frame_get_buffer(frame, 0);
-      if (ret < 0) {
-        LOGE("unable to alloc buffer for frame: %s\n", av_err2str(ret));
-        goto error;
-      }
       break;
     case AVMEDIA_TYPE_DATA:
     case AVMEDIA_TYPE_SUBTITLE:
@@ -163,11 +175,10 @@ Media *add_media(Muxer *muxer, MediaConfig *config, AVDictionary *codec_opt) {
   }
 
   media->media_type = config->media_type;
-  media->stream = stream;
-  media->codec_ctx = codec_ctx;
   media->media_type = config->media_type;
   media->stream_idx = stream->index;
-  media->frame = frame;
+  media->framerate = config->frame_rate;
+  media->nb_samples = config->nb_samples;
   muxer->nb_media++;
   muxer->media = (Media **) realloc(muxer->media, muxer->nb_media * sizeof(Media));
   muxer->media[muxer->nb_media - 1] = media;
@@ -211,7 +222,7 @@ static int write_frame(AVFormatContext *fmt_ctx, const AVRational *time_base, AV
   return 0;
 }
 
-int mux(Muxer *muxer, MUX_CALLBACK callback, AVDictionary * opt) {
+int mux(Muxer *muxer, MUX_CALLBACK callback, AVDictionary *opt) {
   int ret = 0;
 
   if (!(muxer->fmt_ctx->oformat->flags & AVFMT_NOFILE)) {
@@ -223,7 +234,7 @@ int mux(Muxer *muxer, MUX_CALLBACK callback, AVDictionary * opt) {
     }
   }
 
-  AVDictionary * mux_opt = nullptr;
+  AVDictionary *mux_opt = nullptr;
   av_dict_copy(&mux_opt, opt, 0);
   ret = avformat_write_header(muxer->fmt_ctx, &mux_opt);
   av_dict_free(&mux_opt);

@@ -5,6 +5,6 @@
 #ifndef VIDEOBOX_CONCAT_H
 #define VIDEOBOX_CONCAT_H
 
-int concat();
+int concat(const char * input_filename, const char * output_filename);
 
 #endif //VIDEOBOX_CONCAT_H

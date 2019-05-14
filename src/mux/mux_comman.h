@@ -39,6 +39,8 @@ typedef struct Media {
   AVCodecContext *codec_ctx = nullptr;
   AVStream *stream = nullptr;
   AVFrame *frame = nullptr;
+  uint framerate = 30;
+  uint nb_samples = 1024;
   int64_t next_pts = 0;
   int input_eof = false;
   int output_eof = false;
