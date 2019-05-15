@@ -86,8 +86,8 @@ int read_pcm(FILE *file, AVFrame *frame, int nb_samples, int channels, int index
           memcpy(frame->data[ch] + i * sample_size, buf + ch * sample_size, sample_size);
         }
       }
-//      LOGD("audio frame-> #%d fmt: %d nb_samples: %d channels: %d eof: %d\n", index, sample_fmt, nb_samples, channels,
-//           feof(file));
+      LOGD("audio frame-> #%d fmt: %d nb_samples: %d channels: %d eof: %d\n", index, sample_fmt, nb_samples, channels,
+           feof(file));
       return 0;
     case AV_SAMPLE_FMT_S16P:
       LOGD("TBD..\n");

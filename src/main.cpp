@@ -15,6 +15,7 @@
 #include "mux/mux.h"
 #include "mux/concat.h"
 #include "filter/blur_filter.h"
+#include "filter/mix_filter.h"
 
 extern "C" {
 #include <libavformat/avformat.h>
@@ -33,7 +34,7 @@ int main(int argc, char *argv[]) {
     if (argc >= 1) {
         if (check("demux")) return demux_decode(argv[2], argv[3], argv[4]);
         else if (check("mux_exp")) return mux_encode(argv[2], argv[3], argv[4]);
-        else if (check("concat")) return concat(argv[2], argv[3], argv[4]);
+        else if (check("concat")) return concat(argv[2], argv[3], argv[4], argv[5]);
         else if (check("mux")) {
             Muxer *muxer = create_muxer(argv[2]);
             AVDictionary *video_opt = nullptr;
@@ -184,7 +185,7 @@ int main(int argc, char *argv[]) {
             avformat_free_context(fmt_ctx);
 
             return 0;
-        } else if ("blur") {
+        } else if (check("filter_blur")) {
             FILE *file = fopen(argv[2], "rb");
             FILE *result = fopen(argv[3], "wb");
 
@@ -196,7 +197,7 @@ int main(int argc, char *argv[]) {
             av_frame_get_buffer(frame, 0);
             av_frame_make_writable(frame);
 
-            read_yuv(file, frame, frame->width, frame->height, 1, (AVPixelFormat)frame->format);
+            read_yuv(file, frame, frame->width, frame->height, 1, (AVPixelFormat) frame->format);
 
             blur_filter(frame);
 
@@ -212,6 +213,56 @@ int main(int argc, char *argv[]) {
 
             fclose(file);
             fclose(result);
+            return 0;
+        } else if (check("filter_mix")) {
+            FILE *fileA = fopen(argv[2], "rb");
+            FILE *fileB = fopen(argv[3], "rb");
+            FILE *result = fopen(argv[4], "wb");
+
+            AudioMixFilter filter(AV_CH_LAYOUT_STEREO, AV_SAMPLE_FMT_FLTP, 44100, 1.6, 0.2);
+            filter.init();
+
+            AVFrame *frameA = av_frame_alloc();
+            AVFrame *frameB = av_frame_alloc();
+            for (int i = 1; i < 100; ++i) {
+                frameA->format = AV_SAMPLE_FMT_FLTP;
+                frameA->sample_rate = 44100;
+                frameA->nb_samples = 1024;
+                frameA->channel_layout = AV_CH_LAYOUT_STEREO;
+                av_frame_get_buffer(frameA, 0);
+                av_frame_make_writable(frameA);
+
+                frameB->format = AV_SAMPLE_FMT_FLTP;
+                frameB->sample_rate = 44100;
+                frameB->nb_samples = 1024;
+                frameB->channel_layout = AV_CH_LAYOUT_STEREO;
+                av_frame_get_buffer(frameB, 0);
+                av_frame_make_writable(frameB);
+
+                read_pcm(fileA, frameA, frameA->nb_samples, 2, i, (AVSampleFormat) frameA->format);
+                read_pcm(fileB, frameB, frameB->nb_samples, 2, i, (AVSampleFormat) frameB->format);
+
+                filter.filter(frameA, frameB);
+
+                int sample_size = av_get_bytes_per_sample((AVSampleFormat) frameA->format);
+
+                for (int j = 0; j < frameA->nb_samples; ++j) {
+                    for (int k = 0; k < frameA->channels; ++k) {
+                        fwrite(frameA->data[k] + j * sample_size, sample_size, 1, result);
+                    }
+                }
+//                av_frame_unref(frameA);
+//                av_frame_unref(frameB);
+            }
+            av_frame_free(&frameA);
+            av_frame_free(&frameB);
+
+            filter.destroy();
+
+            fclose(fileA);
+            fclose(fileB);
+            fclose(result);
+
             return 0;
         }
     }

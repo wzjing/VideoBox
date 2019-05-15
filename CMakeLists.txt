@@ -22,16 +22,15 @@ if (FFMPEG_FOUND)
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${cflag}")
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${cflag}")
     endforeach (cflag)
-    foreach (lflag ${FFMPEG_LDFLAGS})
-        message(STATUS "lflags: ${lflag}")
-        set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${lflags}")
-    endforeach (lflag)
 else ()
-    message(STATUS "no ffmpeg")
+    message(FATAL_ERROR "no ffmpeg")
 endif ()
 
 link_directories(${FFMPEG_LIBRARY_DIRS})
-include_directories(${FFMPEG_INCLUDE_DIRS})
+#include_directories(${FFMPEG_INCLUDE_DIRS})
+
+message(STATUS "include: ${FFMPEG_INCLUDE_DIRS}")
+message(STATUS "libs   : ${FFMPEG_LIBRARY_DIRS}")
 
 set(SOURCES src/main.cpp
         src/codec/decode.cpp

@@ -24,7 +24,7 @@ int blur_filter(AVFrame *frame) {
 
     create_filter("buffer", "src", buffer, bufferContext, graph, "video_size=1920x1080:pix_fmt=0:time_base=1/30:pixel_aspect=16/9");
     create_filter("gblur", "blur", blur, blurContext, graph, "sigma=30:steps=6");
-    create_filter("drawtext", "text", text, textContext, graph, "fontsize=50:text='Subtitle':x=500:y=500");
+    create_filter("drawtext", "text", text, textContext, graph, "fontsize=50:fontcolor=white:text='Subtitle':x=w/2-tw/2:y=h/2-th/2");
     create_filter("buffersink", "sink", sink, sinkContext, graph, "");
 
     avfilter_link(bufferContext, 0, blurContext, 0);

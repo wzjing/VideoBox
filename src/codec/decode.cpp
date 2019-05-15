@@ -21,7 +21,7 @@ int decode_packet(AVCodecContext *dec_ctx, AVFrame *frame, AVPacket *pkt, DECODE
 
   ret = avcodec_send_packet(dec_ctx, pkt);
   if (ret < 0) {
-    LOGE("Error sending a packet for decoding\n");
+    LOGE("Error sending a packet for decoding: %s\n", av_err2str(ret));
     exit(1);
   }
 

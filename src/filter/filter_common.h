@@ -11,6 +11,7 @@ extern "C" {
 #include <libavfilter/avfilter.h>
 #include <libavfilter/buffersrc.h>
 #include <libavfilter/buffersink.h>
+#include <libavutil/channel_layout.h>
 #include <libavutil/opt.h>
 }
 

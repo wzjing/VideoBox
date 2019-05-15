@@ -19,14 +19,14 @@ int encode_packet(AVCodecContext *enc_ctx, AVFrame *frame, AVPacket *packet, ENC
   ret = avcodec_receive_packet(enc_ctx, packet);
   switch (ret) {
     case 0:
-      LOGD("ENCODE-OUT: got packet\n");
+//      LOGD("ENCODE-OUT: got packet\n");
       callback(packet);
       goto receive;
     case AVERROR(EAGAIN):
-      LOGD("ENCODE-OUT: try again\n");
+//      LOGD("ENCODE-OUT: try again\n");
       return 0;
     case AVERROR_EOF:
-      LOGD("\033[33mENCODE-OUT: eof\033[0m\n");
+//      LOGD("\033[33mENCODE-OUT: eof\033[0m\n");
       return 1;
     default:
       LOGE("encode_packet: error sending frame: %s\n", av_err2str(ret));
