@@ -7,7 +7,7 @@
 
 #include <functional>
 
-#include "mux_comman.h"
+#include "mux_common.h"
 
 //
 typedef const std::function<int(AVFrame *frame, int available_media_type)> &MUX_CALLBACK;

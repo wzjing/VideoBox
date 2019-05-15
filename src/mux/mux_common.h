@@ -2,8 +2,8 @@
 // Created by android1 on 2019/5/10.
 //
 
-#ifndef VIDEOBOX_MUX_COMMAN_H
-#define VIDEOBOX_MUX_COMMAN_H
+#ifndef VIDEOBOX_MUX_COMMON_H
+#define VIDEOBOX_MUX_COMMON_H
 
 extern "C" {
 #include <libavformat/avformat.h>
@@ -58,4 +58,4 @@ typedef struct Muxer {
   AVPacket *packet;
 } Muxer;
 
-#endif //VIDEOBOX_MUX_COMMAN_H
+#endif //VIDEOBOX_MUX_COMMON_H
