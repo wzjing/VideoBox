@@ -20,6 +20,6 @@ typedef struct Fragment {
 
 } Framgment;
 
-int concat(const char *input_filename, const char *input_filename1, const char * bgm_file, const char *output_filename);
+int concat(const char *output_filename, const char * bgm_file, char ** video_files, int nb_videos);
 
 #endif //VIDEOBOX_CONCAT_H

@@ -170,15 +170,15 @@ int AudioMixFilter::filter(AVFrame *sourceA, AVFrame *sourceB) {
         return -1;
     }
     av_frame_unref(sourceA);
-    LOGD("start receive\n");
+//    LOGD("start receive\n");
     ret = av_buffersink_get_frame(sinkContext, sourceA);
     if (ret >= 0) {
-        LOGD("got mix frame\n");
+//        LOGD("got mix frame\n");
+        return 0;
     } else {
         LOGE("unable to filter frame: %s\n", av_err2str(ret));
         return -1;
     }
-    return 0;
 }
 
 void AudioMixFilter::destroy() {

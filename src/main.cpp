@@ -16,6 +16,7 @@
 #include "mux/concat.h"
 #include "filter/blur_filter.h"
 #include "filter/mix_filter.h"
+#include "mux/mux_blur_title.h"
 
 extern "C" {
 #include <libavformat/avformat.h>
@@ -34,7 +35,7 @@ int main(int argc, char *argv[]) {
     if (argc >= 1) {
         if (check("demux")) return demux_decode(argv[2], argv[3], argv[4]);
         else if (check("mux_exp")) return mux_encode(argv[2], argv[3], argv[4]);
-        else if (check("concat")) return concat(argv[2], argv[3], argv[4], argv[5]);
+        else if (check("concat")) return concat(argv[2], argv[3], &argv[4], 2);
         else if (check("mux")) {
             Muxer *muxer = create_muxer(argv[2]);
             AVDictionary *video_opt = nullptr;
@@ -317,6 +318,8 @@ int main(int argc, char *argv[]) {
             fclose(result);
 
             return 0;
+        } else if (check("mux_blur_title")) {
+            return blur_title(argv[2], argv[3]);
         }
     }
 

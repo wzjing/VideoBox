@@ -15,4 +15,19 @@
 #endif
 #define LOGE(format, ...) fprintf(stderr,"\033[31m" format "\033[0m", ## __VA_ARGS__)
 
+extern "C" {
+#include <libavutil/frame.h>
+#include <libavformat/avformat.h>
+#include <libavutil/pixdesc.h>
+#include <libavcodec/avcodec.h>
+}
+
+void logContext(AVCodecContext *context, const char *tag, int isVideo);
+
+void logStream(AVStream* stream, const char * tag, int isVideo);
+
+void logPacket(AVPacket *packet, const char *tag);
+
+void logFrame(AVFrame *frame, const char *tag, int isVideo);
+
 #endif //VIDEOBOX_LOG_H

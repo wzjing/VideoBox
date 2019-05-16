@@ -53,7 +53,7 @@ set(SOURCES src/main.cpp
         src/mux/muxer.cpp
         src/test/test_mux.cpp
         src/mux/Track.cpp
-        src/mux/Track.h src/filter/mix_filter.cpp src/filter/mix_filter.h src/filter/blur_filter.cpp src/filter/blur_filter.h src/filter/filter_common.cpp src/filter/filter_common.h)
+        src/mux/Track.h src/filter/mix_filter.cpp src/filter/mix_filter.h src/filter/blur_filter.cpp src/filter/blur_filter.h src/filter/filter_common.cpp src/filter/filter_common.h src/mux/mux_blur_title.cpp src/mux/mux_blur_title.h src/utils/log.cpp)
 
 add_executable(VideoBox ${SOURCES})
 
