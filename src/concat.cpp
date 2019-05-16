@@ -3,10 +3,10 @@
 //
 
 #include "concat.h"
-#include "../utils/log.h"
-#include "../codec/decode.h"
-#include "../codec/encode.h"
-#include "../filter/mix_filter.h"
+#include "utils/log.h"
+#include "codec/decode.h"
+#include "codec/encode.h"
+#include "filter/mix_filter.h"
 
 int error(const char *message) {
     LOGE("error: file %s line %d\n\t\033[31m%s\033[0m\n", __FILE__, __LINE__, message);
@@ -200,15 +200,16 @@ int concat(const char *output_filename, const char *bgm_file, char **video_files
                 LOGE("read fragment error: %s\n", av_err2str(ret));
                 break;
             }
+            if (packet->dts<0) continue;
             if (packet->stream_index == inVideoStream->index) {
                 LOGD("\033[32mVideo\033[0m: PTS: %ld\tDTS: %ld offset: %ld -> \n", packet->pts, packet->dts,
                      video_start_offset);
-                if (!video_offset_set && packet->dts < 0) {
-                    video_start_offset = 0 - packet->dts;
-                    video_offset_set = 1;
-                }
-                packet->pts += video_start_offset;
-                packet->dts += video_start_offset;
+//                if (!video_offset_set && packet->dts < 0) {
+//                    video_start_offset = 0 - packet->dts;
+//                    video_offset_set = 1;
+//                }
+//                packet->pts += video_start_offset;
+//                packet->dts += video_start_offset;
                 packet->stream_index = videoStream->index;
 
                 av_packet_rescale_ts(packet, inVideoStream->time_base, videoStream->time_base);
@@ -232,7 +233,7 @@ int concat(const char *output_filename, const char *bgm_file, char **video_files
                 packet->dts += last_audio_dts;
                 next_audio_pts = packet->pts + packet->duration;
                 next_audio_dts = packet->dts + packet->duration;
-                logPacket(packet, "origin");
+//                logPacket(packet, "origin");
 
                 // decode bgm packet
                 while (true) {
@@ -261,7 +262,7 @@ int concat(const char *output_filename, const char *bgm_file, char **video_files
                 avcodec_send_packet(inAudioCodecContext, packet);
                 ret = avcodec_receive_frame(inAudioCodecContext, audioFrame);
                 gotAudioFrame = ret == 0;
-                logFrame(audioFrame, "origin", 0);
+//                logFrame(audioFrame, "origin", 0);
                 if (ret < 0 && ret != AVERROR(EAGAIN) && ret != AVERROR_EOF) {
                     LOGE("unable to decode input video music frame: %s\n", av_err2str(ret));
                     goto error;
@@ -282,15 +283,15 @@ int concat(const char *output_filename, const char *bgm_file, char **video_files
 //                    audioFrame->sample_rate = bgmFrame->sample_rate;
                     ret = av_frame_copy(audioFrame, bgmFrame);
                     if (ret != 0) {
-                        LOGD("copy: %s\n", av_err2str(ret));
+                        LOGE("copy: %s\n", av_err2str(ret));
                         continue;
                     }
-                    logFrame(audioFrame, "copy", 0);
+//                    logFrame(audioFrame, "copy", 0);
                 }
 
 
                 // re-encode frame
-                ret = avcodec_send_frame(audioCodecContext, audioFrame);
+                avcodec_send_frame(audioCodecContext, audioFrame);
                 ret = avcodec_receive_packet(audioCodecContext, audioPacket);
                 if (ret == 0) {
                     av_packet_rescale_ts(audioPacket, audioCodecContext->time_base, audioStream->time_base);
@@ -310,6 +311,8 @@ int concat(const char *output_filename, const char *bgm_file, char **video_files
         last_video_dts = next_video_dts;
         last_audio_pts = next_audio_pts;
         last_audio_dts = next_audio_dts;
+
+        LOGD("--------------------------------------------------------------------------------\n");
     }
 
 

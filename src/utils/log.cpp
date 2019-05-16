@@ -6,7 +6,7 @@
 
 void logContext(AVCodecContext *context, const char *tag, int isVideo) {
     if (isVideo) {
-        LOGD("Video Context(\033[33m%s\033[0m)->\tcodec: %s\tpix:%s\tsize: %d/%d\tframerate{%d, %d}\tgroup: %d\tmax_b: %d\ttimebase{%d/%d}\n",
+        LOGD("Video Context(\033[33m%s\033[0m)->\tcodec: %s\tpix:%s\tsize: %dx%d\tframerate{%d, %d}\tgroup: %d\tmax_b: %d\ttimebase{%d, %d}\n",
              tag,
              avcodec_get_name(context->codec_id),
              av_get_pix_fmt_name(context->pix_fmt),
@@ -19,7 +19,7 @@ void logContext(AVCodecContext *context, const char *tag, int isVideo) {
              context->time_base.num,
              context->time_base.den);
     } else {
-        LOGD("Audio Context(\033[33m%s\033[0m)->\tcodec: %s\tsample:%s\tsample_rate: %d\tbitrate: %ld\ttimebase{%d/%d}\n",
+        LOGD("Audio Context(\033[33m%s\033[0m)->\tcodec: %s\tsample:%s\tsample_rate: %d\tbitrate: %ld\ttimebase{%d, %d}\n",
              tag,
              avcodec_get_name(context->codec_id),
              av_get_sample_fmt_name(context->sample_fmt),
@@ -38,11 +38,27 @@ void logPacket(AVPacket *packet, const char *tag) {
 
 void logFrame(AVFrame *frame, const char *tag, int isVideo) {
     if (isVideo) {
-        LOGD("video frame(\033[33m%s\033[0m)->\tsize: %dx%d\tfmt:%d\tPTS: %ld\n",
+        const char *type;
+        switch (frame->pict_type) {
+            case AV_PICTURE_TYPE_I:
+                type = "I";
+                break;
+            case AV_PICTURE_TYPE_B:
+                type = "B";
+                break;
+            case AV_PICTURE_TYPE_P:
+                type = "P";
+                break;
+            default:
+                type = "--";
+                break;
+        }
+        LOGD("video frame(\033[33m%s\033[0m)-> type:%s\tfmt:%d\tsize: %dx%d\tPTS: %8ld\n",
              tag,
+             type,
+             frame->format,
              frame->width,
              frame->height,
-             frame->format,
              frame->pts);
     } else {
         LOGD("audio frame(\033[33m%s\033[0m)->\trate: %d\tchannels: %d\tfmt:%d\tPTS: %ld\n",

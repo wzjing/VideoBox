@@ -26,6 +26,8 @@ public:
     int filter(AVFrame *source);
 
     void destroy();
+
+    void setConfig(float sigmaValue, int stepsValue);
 };
 
 int blur_filter(AVFrame *frame);

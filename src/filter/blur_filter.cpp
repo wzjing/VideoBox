@@ -111,14 +111,18 @@ int BlurFilter::filter(AVFrame *source) {
     }
     av_frame_unref(source);
     if (av_buffersink_get_frame(sinkContext, source) >= 0) {
-        LOGD("got blur result\n");
+        return 0;
     } else {
         LOGE("unable to filter frame: %s\n", av_err2str(ret));
         return -1;
     }
-    return 0;
 }
 
 void BlurFilter::destroy() {
     avfilter_graph_free(&graph);
+}
+
+void BlurFilter::setConfig(float sigmaValue, int stepsValue) {
+    this->sigma = sigmaValue;
+    this->steps = stepsValue;
 }

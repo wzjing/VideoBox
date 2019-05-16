@@ -1,18 +1,14 @@
-//
-// Created by android1 on 2019/5/16.
-//
-
-#include "mux_blur_title.h"
-#include "../utils/log.h"
-#include "../utils/snapshot.h"
-#include "../filter/blur_filter.h"
+#include "mux_title.h"
+#include "utils/log.h"
+#include "utils/snapshot.h"
+#include "filter/blur_filter.h"
 
 int error(const char *message, int ret) {
     LOGE("%s: %s\n", message, av_err2str(ret));
     return -1;
 }
 
-int blur_title(const char *input_filename, const char *output_filename) {
+int mux_title(const char *input_filename, const char *output_filename) {
     AVFormatContext *inFormatContext = nullptr;
     AVFormatContext *outFormatContext = nullptr;
     AVCodec *vDecode = nullptr;
@@ -64,8 +60,19 @@ int blur_title(const char *input_filename, const char *output_filename) {
             vEncodeContext->time_base = (AVRational) {vInStream->r_frame_rate.den, vInStream->r_frame_rate.num};
             vEncodeContext->framerate = vInStream->r_frame_rate;
             vEncodeContext->gop_size = 12;
+            vEncodeContext->has_b_frames = 1;
+            vEncodeContext->max_b_frames = 10;
+            vEncodeContext->qmin = 10;
+            vEncodeContext->qmax = 50;
+
+            AVDictionary * opt= nullptr;
+            if(vEncodeContext->codec_id == AV_CODEC_ID_H264) {
+                av_dict_set(&opt, "preset", "slow", 0);
+                av_dict_set(&opt, "tune", "zerolatency", 0);
+                av_dict_set(&opt, "profile", "main", 0);
+            }
             vOutStream->time_base = vEncodeContext->time_base;
-            ret = avcodec_open2(vEncodeContext, vEncode, nullptr);
+            ret = avcodec_open2(vEncodeContext, vEncode, &opt);
             if (ret < 0) return error("video encode avcodec_open2", ret);
             avcodec_parameters_from_context(vOutStream->codecpar, vEncodeContext);
             if (ret < 0) return error("video encode avcodec_parameters_from_context", ret);
@@ -106,18 +113,10 @@ int blur_title(const char *input_filename, const char *output_filename) {
         }
     }
 
-    logContext(vEncodeContext, "Encoder", 1);
-    logContext(aEncodeContext, "Encoder", 0);
+    logContext(vEncodeContext, "H264", 1);
+    logContext(aEncodeContext, "AAC", 0);
 
     if (!vDecodeContext || !aDecodeContext) return error("input file don't have video or audio track", -1);
-
-    LOGD("In -> Video: %dx%d Audio: %s/%d/%d\n", vDecodeContext->width, vDecodeContext->height,
-         av_get_sample_fmt_name(aDecodeContext->sample_fmt), aDecodeContext->sample_rate,
-         aDecodeContext->channels);
-
-    LOGD("Out-> Video: %dx%d Audio: %s/%d/%d\n", vEncodeContext->width, vEncodeContext->height,
-         av_get_sample_fmt_name(aEncodeContext->sample_fmt), aEncodeContext->sample_rate,
-         aEncodeContext->channels);
 
     AVPacket *inPacket = av_packet_alloc();
     AVFrame *inVideoFrame = av_frame_alloc();
@@ -147,13 +146,8 @@ int blur_title(const char *input_filename, const char *output_filename) {
     }
 
     // blur the first frame
-    BlurFilter blurFilter(vDecodeContext->width, vDecodeContext->height, vDecodeContext->pix_fmt, 30, 6, "问题");
+    BlurFilter blurFilter(vDecodeContext->width, vDecodeContext->height, vDecodeContext->pix_fmt, 30, 6, "Title");
     blurFilter.init();
-
-    blurFilter.filter(inVideoFrame);
-//    save_yuv(inVideoFrame->data, inVideoFrame->linesize, inVideoFrame->width, inVideoFrame->height,
-//             "/mnt/c/Users/android1/desktop/blur_test.yuv");
-    blurFilter.destroy();
     // free input context
     av_packet_free(&inPacket);
     avformat_free_context(inFormatContext);
@@ -176,43 +170,56 @@ int blur_title(const char *input_filename, const char *output_filename) {
     }
 
     // Encode output
+    AVFrame *outVideoFrame = nullptr;
     AVPacket *outPacket = av_packet_alloc();
 
     int64_t video_pts = 0;
     int64_t audio_pts = 0;
 
-    int duration = 1;
+    int duration = 2;
 
     int encode_video = 1;
     int encode_audio = 1;
 
-
-    int sample_size = av_get_bytes_per_sample((AVSampleFormat) inAudioFrame->format);
     // erase audio frame data
+    int sample_size = av_get_bytes_per_sample((AVSampleFormat) inAudioFrame->format);
     for (i = 0; i < inAudioFrame->channels; i++) {
         LOGD("clean %d/%d\n", i, inAudioFrame->linesize[i]);
         memset(inAudioFrame->data[i], '0', inAudioFrame->nb_samples * sample_size);
     }
 
+    i = 0;
     while (encode_video || encode_audio) {
-        if (!encode_audio || (encode_video && av_compare_ts(video_pts, vEncodeContext->time_base,
-                                                            audio_pts, aEncodeContext->time_base) <= 0)) {
-            inVideoFrame->pts = video_pts;
-            video_pts++;
-            avcodec_send_frame(vEncodeContext, inVideoFrame);
+        if (!encode_audio || av_compare_ts(video_pts, vEncodeContext->time_base,
+                                                            audio_pts, aEncodeContext->time_base) <= 0) {
+
+            if (av_compare_ts(video_pts, vEncodeContext->time_base,
+                              duration, (AVRational) {1, 1}) > 0) {
+                outVideoFrame = nullptr;
+            } else {
+                i++;
+                float blur = 30.0 - i > 0 ? 30 - i : 0;
+                LOGD("blur: %f\n", blur);
+                blurFilter.setConfig(blur, 6);
+                blurFilter.init();
+                outVideoFrame = av_frame_clone(inVideoFrame);
+                blurFilter.filter(outVideoFrame);
+                blurFilter.destroy();
+                if (!outVideoFrame) {
+                    LOGE("unable to clone video frame\n");
+                    goto error;
+                }
+                outVideoFrame->pts = video_pts;
+                video_pts++;
+            }
+            avcodec_send_frame(vEncodeContext, outVideoFrame);
             LOGD("send video frame\n");
             while (true) {
                 ret = avcodec_receive_packet(vEncodeContext, outPacket);
                 if (ret == 0) {
-                    LOGD("encode video frame: %ld\n", outPacket->pts);
+                    LOGD("received video packet: %ld\n", outPacket->pts);
                     av_packet_rescale_ts(outPacket, vEncodeContext->time_base, vOutStream->time_base);
                     outPacket->stream_index = vOutStream->index;
-                    if (av_compare_ts(outPacket->pts, vOutStream->time_base,
-                                      duration, (AVRational) {1, 1}) > 0) {
-                        LOGD("Stream #%d finished\n", vOutStream->index);
-                        encode_video = 0;
-                        break;
-                    }
                     ret = av_interleaved_write_frame(outFormatContext, outPacket);
                     if (ret < 0) {
                         LOGE("write video frame error: %s\n", av_err2str(ret));
@@ -221,6 +228,7 @@ int blur_title(const char *input_filename, const char *output_filename) {
                 } else if (ret == AVERROR(EAGAIN)) {
                     break;
                 } else if (ret == AVERROR_EOF) {
+                    LOGW("Stream Video finished\n");
                     encode_video = 0;
                     break;
                 } else {
@@ -228,23 +236,23 @@ int blur_title(const char *input_filename, const char *output_filename) {
                     goto error;
                 }
             }
+            av_frame_unref(outVideoFrame);
         } else {
-            inAudioFrame->pts = audio_pts;
-            audio_pts += inAudioFrame->nb_samples;
+            if (av_compare_ts(audio_pts, aEncodeContext->time_base,
+                              duration, (AVRational) {1, 1}) >= 0) {
+                inAudioFrame = nullptr;
+            } else {
+                inAudioFrame->pts = audio_pts;
+                audio_pts += inAudioFrame->nb_samples;
+            }
             avcodec_send_frame(aEncodeContext, inAudioFrame);
             LOGD("send audio frame\n");
             while (true) {
                 ret = avcodec_receive_packet(aEncodeContext, outPacket);
                 if (ret == 0) {
-                    LOGD("encode audio frame: %ld\n", outPacket->pts);
+                    LOGD("received audio packet: %ld\n", outPacket->pts);
                     av_packet_rescale_ts(outPacket, aEncodeContext->time_base, aOutStream->time_base);
                     outPacket->stream_index = aOutStream->index;
-                    if (av_compare_ts(outPacket->pts, aOutStream->time_base,
-                                      duration, (AVRational) {1, 1}) > 0) {
-                        LOGD("Stream #%d finished\n", aOutStream->index);
-                        encode_audio = 0;
-                        break;
-                    }
                     ret = av_interleaved_write_frame(outFormatContext, outPacket);
                     if (ret < 0) {
                         LOGE("write audio frame error: %s\n", av_err2str(ret));
@@ -254,6 +262,7 @@ int blur_title(const char *input_filename, const char *output_filename) {
                 } else if (ret == AVERROR(EAGAIN)) {
                     break;
                 } else if (ret == AVERROR_EOF) {
+                    LOGW("Stream Audio finished\n");
                     encode_audio = 0;
                     break;
                 } else {

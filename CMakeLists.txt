@@ -33,27 +33,51 @@ message(STATUS "include: ${FFMPEG_INCLUDE_DIRS}")
 message(STATUS "libs   : ${FFMPEG_LIBRARY_DIRS}")
 
 set(SOURCES src/main.cpp
+        src/mux_title.cpp
+        src/mux_title.h
+        src/concat.cpp
+        src/concat.h
         src/codec/decode.cpp
+        src/codec/decode.h
         src/codec/encode.cpp
+        src/codec/encode.h
         src/mux/mux_common.h
         src/mux/demux.cpp
+        src/mux/demux.h
         src/mux/mux.cpp
-        src/mux/concat.cpp
-        src/utils/snapshot.cpp
-        src/utils/io.cpp
-        src/demux_decode.hpp
-        src/mux_encode.hpp
-        src/multi-mux.hpp
-        src/audio_resample.hpp
-        src/audio_filter.hpp
-        src/video_filter.hpp
-        src/video_encode_x264.hpp
-        src/test/test_io.hpp
-        src/mux/muxer.h
+        src/mux/mux.h
         src/mux/muxer.cpp
-        src/test/test_mux.cpp
+        src/mux/muxer.h
         src/mux/Track.cpp
-        src/mux/Track.h src/filter/mix_filter.cpp src/filter/mix_filter.h src/filter/blur_filter.cpp src/filter/blur_filter.h src/filter/filter_common.cpp src/filter/filter_common.h src/mux/mux_blur_title.cpp src/mux/mux_blur_title.h src/utils/log.cpp)
+        src/mux/Track.h
+        src/filter/filter_common.cpp
+        src/filter/filter_common.h
+        src/filter/mix_filter.cpp
+        src/filter/mix_filter.h
+        src/filter/blur_filter.cpp
+        src/filter/blur_filter.h
+        src/utils/log.cpp
+        src/utils/log.h
+        src/utils/io.cpp
+        src/utils/io.h
+        src/utils/snapshot.cpp
+        src/utils/snapshot.h
+        src/test/test_muxer.cpp
+        src/test/test_muxer.h
+        src/test/test_demuxer.cpp
+        src/test/test_demuxer.h
+        src/test/mux_encode.cpp
+        src/test/mux_encode.h
+        src/test/resample.cpp
+        src/test/resample.h
+        src/test/x264.cpp
+        src/test/x264.h
+        src/test/test_util.cpp
+        src/test/test_util.h
+        src/test/filter_audio.cpp
+        src/test/filter_audio.h
+        src/test/get_info.h
+        src/test/get_info.cpp)
 
 add_executable(VideoBox ${SOURCES})
 
