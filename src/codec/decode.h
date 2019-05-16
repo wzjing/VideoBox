@@ -15,7 +15,9 @@ extern "C" {
 
 typedef const std::function<void(AVFrame *frame)> &DECODE_CALLBACK;
 
-int decode_packet(AVCodecContext *dec_ctx, AVFrame *frame, AVPacket *pkt, DECODE_CALLBACK callback);
+int decode(AVCodecContext *dec_ctx, AVFrame **frame, AVPacket *packet);
+
+int decode_packet(AVCodecContext *dec_ctx, AVFrame *&frame, AVPacket *pkt, DECODE_CALLBACK callback);
 
 int decode_h264(const char *input_file, DECODE_CALLBACK callback);
 

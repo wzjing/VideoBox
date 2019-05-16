@@ -115,12 +115,10 @@ int AudioMixFilter::init() {
     char ch_layout[64];
     av_get_channel_layout_string(ch_layout, sizeof(ch_layout),
                                  av_get_channel_layout_nb_channels(channel_layout), channel_layout);
-    LOGD("Channel_layout: %s sample_fmt: %s\n", ch_layout, av_get_sample_fmt_name((AVSampleFormat) sample_fmt));
 
     // source a filter
     snprintf(args, 512, "channel_layout=%s:sample_fmt=%d:sample_rate=%d:time_base=%d/%d",
              ch_layout, sample_fmt, sample_rate, 1, sample_rate);
-    LOGD("args: %s\n", args);
     create_filter("abuffer", "src0", bufferA, bufferAContext, graph, args);
 
     // source b filter
@@ -155,49 +153,6 @@ int AudioMixFilter::init() {
 }
 
 int AudioMixFilter::filter(AVFrame *sourceA, AVFrame *sourceB) {
-//    AVFilterGraph *filterGraph = avfilter_graph_alloc();
-//    if (!filterGraph) {
-//        LOGE("unable to create filter graph\n");
-//        return -1;
-//    }
-//
-//    AVFilterContext *buffer_a_ctx, *buffer_b_ctx, *volume_a_ctx, *volume_b_ctx, *mix_ctx, *sink_ctx;
-//    const AVFilter *bufferA, *bufferB, *volume_a, *volume_b, *mix, *sink;
-//
-//    char args[512];
-//    char ch_layout[64];
-//    av_get_channel_layout_string(ch_layout, sizeof(ch_layout),
-//                                 av_get_channel_layout_nb_channels(channel_layout), channel_layout);
-//    LOGD("Channel_layout: %s sample_fmt: %s\n", ch_layout, av_get_sample_fmt_name((AVSampleFormat) sample_fmt));
-//
-//    // source a filter
-//    snprintf(args, 512, "channel_layout=%s:sample_fmt=%d:sample_rate=%d:time_base=%d/%d",
-//             ch_layout, sourceA->format, sourceA->sample_rate, 1, sourceA->sample_rate);
-//    LOGD("args: %s\n", args);
-//    create_filter("abuffer", "src0", bufferA, buffer_a_ctx, filterGraph, args);
-//
-//    // source b filter
-//    create_filter("abuffer", "src1", bufferB, buffer_b_ctx, filterGraph, args);
-//
-//    // volume a filter
-//    snprintf(args, 512, "volume=%f", sourceAVolume);
-//    create_filter("volume", "volume0", volume_a, volume_a_ctx, filterGraph, "volume=1.2");
-//
-//    // volume b filter
-//    snprintf(args, 512, "volume=%f", sourceBVolume);
-//    create_filter("volume", "volume1", volume_b, volume_b_ctx, filterGraph, "volume=0.8");
-//
-//    // mix filter
-//    create_filter("amix", "amix", mix, mix_ctx, filterGraph, "");
-//
-//    // sink filter
-//    create_filter("abuffersink", "sink", sink, sink_ctx, filterGraph, "");
-//
-//    avfilter_link(buffer_a_ctx, 0, volume_a_ctx, 0);
-//    avfilter_link(buffer_b_ctx, 0, volume_b_ctx, 0);
-//    avfilter_link(volume_a_ctx, 0, mix_ctx, 0);
-//    avfilter_link(volume_b_ctx, 0, mix_ctx, 1);
-//    avfilter_link(mix_ctx, 0, sink_ctx, 0);
 
     int ret;
 

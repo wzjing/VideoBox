@@ -52,14 +52,14 @@ int concat(const char *input_filename, const char *input_filename1, const char *
         check(ret, "input format info error");
         for (int j = 0; j < fragments[i]->formatContext->nb_streams; ++j) {
             if (fragments[i]->formatContext->streams[j]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
-                LOGE("video id: %d\n", j);
+                LOGD("video id: %d\n", j);
                 fragments[i]->videoStream = fragments[i]->formatContext->streams[j];
                 AVCodec *codec = avcodec_find_decoder(fragments[i]->videoStream->codecpar->codec_id);
                 fragments[i]->videoCodecContext = avcodec_alloc_context3(codec);
                 avcodec_parameters_to_context(fragments[i]->videoCodecContext, fragments[i]->videoStream->codecpar);
                 avcodec_open2(fragments[i]->videoCodecContext, codec, nullptr);
             } else if (fragments[i]->formatContext->streams[j]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
-                LOGE("audio id: %d\n", j);
+                LOGD("audio id: %d\n", j);
                 fragments[i]->audioStream = fragments[i]->formatContext->streams[j];
                 AVCodec *codec = avcodec_find_decoder(fragments[i]->audioStream->codecpar->codec_id);
                 fragments[i]->audioCodecContext = avcodec_alloc_context3(codec);
@@ -160,15 +160,19 @@ int concat(const char *input_filename, const char *input_filename1, const char *
     Fragment *bgmFragment = fragments[nb_fragments - 1];
     auto *bgmCodecContext = bgmFragment->audioCodecContext;
     AudioMixFilter filter(bgmCodecContext->channel_layout, bgmCodecContext->sample_fmt, bgmCodecContext->sample_rate,
-                          0.6, 1.6);
+                          1.6, 0.3);
+
+    LOGD("BGM-> sample_rate: %d sample_fmt: %s channels: %d\n", bgmCodecContext->sample_rate,
+         av_get_sample_fmt_name(bgmCodecContext->sample_fmt),
+         av_get_channel_layout_nb_channels(bgmCodecContext->channel_layout));
 
     filter.init();
 
+    FILE * test = fopen("/mnt/c/Users/wzjing/Desktop/test.pcm", "wb");
     for (int i = 0; i < nb_fragments - 1; ++i) {
         AVFormatContext *inFormatContext = fragments[i]->formatContext;
         AVStream *inVideoStream = fragments[i]->videoStream;
         AVStream *inAudioStream = fragments[i]->audioStream;
-//        AVCodecContext *inVideoCodecContext = fragments[i]->videoCodecContext;
         AVCodecContext *inAudioCodecContext = fragments[i]->audioCodecContext;
         uint64_t next_video_pts = 0;
         uint64_t next_video_dts = 0;
@@ -201,32 +205,49 @@ int concat(const char *input_filename, const char *input_filename1, const char *
 
                 // decode bgm frame
                 while (true) {
-                    ret = av_read_frame(inFormatContext, bgmPacket);
-                    if (ret != 0) {
-                        LOGE("RET: %s\n", av_err2str(ret));
+                    ret = av_read_frame(bgmFragment->formatContext, bgmPacket);
+                    if (ret == AVERROR_EOF) {
+                        LOGD("Reach EOF\n");
+                        break;
+                    } else if (ret != 0) {
+                        LOGE("Error: %s\n", av_err2str(ret));
                         break;
                     }
+//                    else {
+//                        LOGD("BGM packet-> stream: %d PTS: %ld\n", bgmPacket->stream_index, bgmPacket->pts);
+//                    }
                     if (bgmPacket->stream_index == bgmFragment->audioStream->index) break;
                 }
-                decode_packet(bgmFragment->audioCodecContext, bgmFrame, bgmPacket, [](AVFrame *frame) -> void {
-                    LOGD("\t got bgm frame\n");
-                });
 
-                // decode video frame
-                decode_packet(inAudioCodecContext, audioFrame, packet,
-                              [&audioCodecContext, &audioPacket, &filter, &bgmFrame](AVFrame *frame) -> void {
-//                                  LOGD("Audio Frame-> pts: %ld\tdts: %ld\tfmt: %s\tnb_samples: %d\tchannels: %d\n",
-//                                       frame->pts, frame->pkt_dts,
-//                                       av_get_sample_fmt_name((AVSampleFormat) frame->format),
-//                                       frame->nb_samples, frame->channels);
-                                  filter.filter(frame, bgmFrame);
-                                  encode_packet(audioCodecContext, frame, audioPacket, [](AVPacket *enc_pkt) -> int {
-                                      LOGD("\tre-encode-> size:%d\tPTS: %ld\tDTS: %ld\n", enc_pkt->size, enc_pkt->pts,
-                                           enc_pkt->dts);
-                                      return 0;
-                                  });
-                              });
-                av_interleaved_write_frame(oFormatContext, packet);
+                // decode bgm frame
+                avcodec_send_packet(bgmCodecContext, bgmPacket);
+                avcodec_receive_frame(bgmCodecContext, bgmFrame);
+//                LOGD("\t got bgm frame-> fmt: %s rate: %d layout: %ld ch: %d\n",
+//                     av_get_sample_fmt_name((AVSampleFormat) bgmFrame->format),
+//                     bgmFrame->sample_rate,
+//                     bgmFrame->channel_layout,
+//                     bgmFrame->channels);
+
+
+                // decode audio frame
+                avcodec_send_packet(inAudioCodecContext, packet);
+                avcodec_receive_frame(inAudioCodecContext, audioFrame);
+
+                // filter frame
+                filter.filter(audioFrame, bgmFrame);
+                for (int j = 0; j < audioFrame->nb_samples; ++j) {
+                    for (int ch = 0; ch < audioFrame->channels; ++ch) {
+                        fwrite(audioFrame->data[ch] + j * 4, 4, 1, test);
+                    }
+                }
+
+                // re-encode frame
+                avcodec_send_frame(audioCodecContext, audioFrame);
+                avcodec_receive_packet(audioCodecContext, audioPacket);
+                LOGD("packet(re-encode)-> stream: %d\tsize:%d\tPTS: %ld\tDTS: %ld\n", audioPacket->stream_index, audioPacket->size,
+                     audioPacket->dts, audioPacket->pts);
+                audioPacket->stream_index = audioStream->index;
+                av_interleaved_write_frame(oFormatContext, audioPacket);
             }
         } while (true);
         last_video_pts = next_video_pts;

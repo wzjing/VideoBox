@@ -11,14 +11,12 @@ int create_filter(const char *filter_name, const char *instance_name, const AVFi
         LOGE("unable to find filter: %s\n", filter_name);
         return -1;
     }
-    LOGD("got filter: %s\n", filter_name);
 
     filter_ctx = avfilter_graph_alloc_filter(graph, filter, instance_name);
     if (!filter_ctx) {
         LOGE("unable to create filter context\n");
         return -1;
     }
-    LOGD("allocated filter context: %s\n", filter_name);
 
     int ret = avfilter_init_str(filter_ctx, opt);
     if (ret < 0) {
@@ -26,6 +24,5 @@ int create_filter(const char *filter_name, const char *instance_name, const AVFi
         return -1;
     }
 
-    LOGD("filter create finished: %s\n", filter_name);
     return 0;
 }

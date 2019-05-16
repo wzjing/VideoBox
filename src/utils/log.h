@@ -13,6 +13,6 @@
 #else
 #define LOGD(format, ...)
 #endif
-#define LOGE(format, ...) fprintf(stderr,"\033[32m" format "\033[0m", ## __VA_ARGS__)
+#define LOGE(format, ...) fprintf(stderr,"\033[31m" format "\033[0m", ## __VA_ARGS__)
 
 #endif //VIDEOBOX_LOG_H

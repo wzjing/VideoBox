@@ -80,16 +80,70 @@ int main(int argc, char *argv[]) {
         } else if (check("resample")) return resample(argv[2], argv[3], argv[4]);
         else if (check("audio_filter")) return audio_filter(argv[2], argv[3], argv[4]);
         else if (check("x264_encode")) return encode(argv[2], argv[3]);
-//    else if (check("multi_mux")) return mux_multi(&argv[2], &argv[3], argv[4]);
         else if (check("io")) return test_io(argv[2], argv[3]);
-        else if (check("av_dict")) {
-            AVDictionary *opt;
-            av_dict_set(&opt, "sample_rate", "44100", 0);
-            av_dict_set(&opt, "sample_fmt", "FLTP", 0);
-            assert(opt != nullptr);
-            printf("count: %d\n", av_dict_count(opt));
-            if (opt)
-                av_dict_free(&opt);
+        else if (check("decode")) {
+            int ret = 0;
+            AVFormatContext *fmt_ctx = nullptr;
+            AVCodecContext *codec_ctx = nullptr;
+            LOGD("filename: %s\n", argv[2]);
+            ret = avformat_open_input(&fmt_ctx, argv[2], nullptr, nullptr);
+            if (ret < 0) {
+                LOGE("Could not open source file %s %s\n", argv[2], av_err2str(ret));
+                return -1;
+            }
+
+            if (avformat_find_stream_info(fmt_ctx, nullptr) < 0) {
+                LOGE("Could not find stream information\n");
+                return -1;
+            }
+
+            AVStream *audioStream = nullptr;
+            for (int i = 0; i < fmt_ctx->nb_streams; ++i) {
+                if (fmt_ctx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
+                    audioStream = fmt_ctx->streams[i];
+                    break;
+                }
+            }
+            if (!audioStream) {
+                LOGE("unable to find video stream: %s\n", argv[2]);
+                return -1;
+            }
+
+            AVCodec *codec = avcodec_find_decoder(audioStream->codecpar->codec_id);
+            codec_ctx = avcodec_alloc_context3(codec);
+
+            if (!codec_ctx) {
+                LOGE("code context alloc error\n");
+                return -1;
+            }
+
+            avcodec_parameters_to_context(codec_ctx, audioStream->codecpar);
+            avcodec_open2(codec_ctx, codec, nullptr);
+
+            AVPacket pkt;
+            av_init_packet(&pkt);
+            pkt.size = 0;
+            pkt.data = nullptr;
+
+            AVFrame *frame = av_frame_alloc();
+
+            while (av_read_frame(fmt_ctx, &pkt) == 0) {
+                AVPacket packet = pkt;
+                if (pkt.size) {
+                    do {
+                        ret = decode_packet(codec_ctx, frame, &packet, [codec_ctx](AVFrame *f) -> void {
+                            LOGD("nb_samples: %d sample_rate: %d\n", f->nb_samples, f->sample_rate);
+                        });
+                    } while (ret);
+                }
+                av_packet_unref(&packet);
+            }
+
+
+            av_frame_free(&frame);
+            av_packet_unref(&pkt);
+            avformat_free_context(fmt_ctx);
+
             return 0;
         } else if (check("h264")) {
             /** h264 test */
@@ -145,39 +199,40 @@ int main(int argc, char *argv[]) {
             LOGD("codec_ctx size: %dx%d\n", codec_ctx->width, codec_ctx->height);
             LOGD("codec_ctx frame_rate: %d/%d\n", codec_ctx->framerate.num, codec_ctx->framerate.den);
 
-//      while (av_read_frame(fmt_ctx, &pkt) == 0) {
-//        AVPacket packet = pkt;
-//        if (pkt.size) {
-//          do {
-//            ret = decode_packet(codec_ctx, frame, &packet, [codec_ctx](AVFrame *f) -> void {
-//              const char *type;
-//              switch (f->pict_type) {
-//                case AV_PICTURE_TYPE_I:
-//                  type = "I";
-//                  break;
-//                case AV_PICTURE_TYPE_B:
-//                  type = "N";
-//                  break;
-//                case AV_PICTURE_TYPE_P:
-//                  type = "P";
-//                  break;
-//                default:
-//                  type = "--";
-//                  break;
-//              }
-//              LOGD("frame #%d type:%s  dts: %ld pts: %ld\n", codec_ctx->frame_number, type, f->pkt_dts, f->pkt_dts);
-//            });
-//          } while (ret);
-////          LOGD("timebase: %ld/%ld\n", pkt.pos, pkt.dts);
-////          LOGD("stream: #%d -> index:%4ld\tpts:%-8s\tpts_time:%-8s\tdts:%-8s\tdts_time:%-8s\tduration:%-8s\tduration_time:%-8s\n",
-////               stream->index,
-////               stream->nb_frames,
-////               av_ts2str(pkt.pts), av_ts2timestr(pkt.pts, time_base),
-////               av_ts2str(pkt.dts), av_ts2timestr(pkt.dts, time_base),
-////               av_ts2str(pkt.duration), av_ts2timestr(pkt.duration, time_base));
-//        }
-//        av_packet_unref(&packet);
-//      }
+            while (av_read_frame(fmt_ctx, &pkt) == 0) {
+                AVPacket packet = pkt;
+                if (pkt.size) {
+                    do {
+                        ret = decode_packet(codec_ctx, frame, &packet, [codec_ctx](AVFrame *f) -> void {
+                            const char *type;
+                            switch (f->pict_type) {
+                                case AV_PICTURE_TYPE_I:
+                                    type = "I";
+                                    break;
+                                case AV_PICTURE_TYPE_B:
+                                    type = "N";
+                                    break;
+                                case AV_PICTURE_TYPE_P:
+                                    type = "P";
+                                    break;
+                                default:
+                                    type = "--";
+                                    break;
+                            }
+                            LOGD("frame #%d type:%s  dts: %ld pts: %ld\n", codec_ctx->frame_number, type, f->pkt_dts,
+                                 f->pkt_dts);
+                        });
+                    } while (ret);
+//          LOGD("timebase: %ld/%ld\n", pkt.pos, pkt.dts);
+//          LOGD("stream: #%d -> index:%4ld\tpts:%-8s\tpts_time:%-8s\tdts:%-8s\tdts_time:%-8s\tduration:%-8s\tduration_time:%-8s\n",
+//               stream->index,
+//               stream->nb_frames,
+//               av_ts2str(pkt.pts), av_ts2timestr(pkt.pts, time_base),
+//               av_ts2str(pkt.dts), av_ts2timestr(pkt.dts, time_base),
+//               av_ts2str(pkt.duration), av_ts2timestr(pkt.duration, time_base));
+                }
+                av_packet_unref(&packet);
+            }
 
 
             av_frame_free(&frame);
@@ -251,8 +306,6 @@ int main(int argc, char *argv[]) {
                         fwrite(frameA->data[k] + j * sample_size, sample_size, 1, result);
                     }
                 }
-//                av_frame_unref(frameA);
-//                av_frame_unref(frameB);
             }
             av_frame_free(&frameA);
             av_frame_free(&frameB);
