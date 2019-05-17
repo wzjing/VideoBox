@@ -10,7 +10,6 @@ extern "C" {
 int get_info(const char *input_filename) {
     int ret = 0;
     AVFormatContext *fmt_ctx = nullptr;
-    AVCodecContext *codec_ctx = nullptr;
     LOGD("filename: %s\n", input_filename);
     ret = avformat_open_input(&fmt_ctx, input_filename, nullptr, nullptr);
     if (ret < 0) {
@@ -23,59 +22,66 @@ int get_info(const char *input_filename) {
         return -1;
     }
 
-    AVDictionaryEntry *tag = nullptr;
+    logMetadata(fmt_ctx->metadata, "AVFormatContext");
 
-    LOGD("metadata:\n");
-    while ((tag = av_dict_get(fmt_ctx->metadata, "", tag, AV_DICT_IGNORE_SUFFIX)))
-        printf("\t%s=%s\n", tag->key, tag->value);
-    LOGD("\n");
-
-    int have_video = 0;
-    int video_index = 0;
+    int video_index = -1;
+    int audio_index = -1;
     for (int i = 0; i < fmt_ctx->nb_streams; ++i) {
         if (fmt_ctx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
-            have_video = 1;
             video_index = i;
-            break;
+        } else if (fmt_ctx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
+            audio_index = i;
         }
     }
-    if (!have_video) {
-        LOGE("unable to read video from h264 file: %s\n", input_filename);
-        return -1;
+    if (video_index == -1) {
+        LOGW("no track found: %s\n", input_filename);
+    }
+
+    if (audio_index == -1) {
+        LOGW("no video track found: %s\n", input_filename);
     }
 
 
-    AVStream *stream = fmt_ctx->streams[video_index];
-    AVCodec *codec = avcodec_find_decoder(stream->codecpar->codec_id);
-    codec_ctx = avcodec_alloc_context3(codec);
+    AVStream *videoStream = fmt_ctx->streams[video_index];
+    AVStream *audioStream = fmt_ctx->streams[audio_index];
+    AVCodec *videoCodec = avcodec_find_decoder(videoStream->codecpar->codec_id);
+    AVCodec *audioCodec = avcodec_find_decoder(audioStream->codecpar->codec_id);
+    AVCodecContext *videoContext = avcodec_alloc_context3(videoCodec);
+    AVCodecContext *audioContext = avcodec_alloc_context3(audioCodec);
 
-    if (!codec_ctx) {
-        LOGE("code context alloc error\n");
-        return -1;
-    }
+    avcodec_parameters_to_context(videoContext, videoStream->codecpar);
+    avcodec_open2(videoContext, videoCodec, nullptr);
 
-    avcodec_parameters_to_context(codec_ctx, stream->codecpar);
-    avcodec_open2(codec_ctx, codec, nullptr);
+    avcodec_parameters_to_context(audioContext, audioStream->codecpar);
+    avcodec_open2(audioContext, audioCodec, nullptr);
 
     AVPacket pkt;
     av_init_packet(&pkt);
-    pkt.size = 0;
-    pkt.data = nullptr;
 
     AVFrame *frame = av_frame_alloc();
 
-    logContext(codec_ctx, "VideoCodecContext", 1);
-    logStream(stream, "VideoStream", 1);
+    logContext(videoContext, "VideoCodecContext", 1);
+    logStream(videoStream, "VideoStream", 1);
+    logMetadata(videoStream->metadata, "VideoStream");
 
     while (av_read_frame(fmt_ctx, &pkt) == 0) {
         AVPacket packet = pkt;
         if (pkt.stream_index == video_index) {
-            logPacket(&packet, "Packet");
+            logPacket(&packet, "VIDEO");
             do {
-                ret = decode_packet(codec_ctx, frame, &packet, [codec_ctx](AVFrame *f) -> void {
+                ret = decode_packet(videoContext, frame, &packet, [&videoContext](AVFrame *vFrame) -> void {
                     char index[8];
-                    snprintf(index, 8, "%3d", codec_ctx->frame_number);
-                    logFrame(f, index, 1);
+                    snprintf(index, 8, "%3d", videoContext->frame_number);
+                    logFrame(vFrame, index, 1);
+                });
+            } while (ret);
+        } else {
+//            logPacket(&packet, "AUDIO");
+            do {
+                ret = decode_packet(audioContext, frame, &packet, [&audioContext](AVFrame *aFrame) -> void {
+                    char index[8];
+                    snprintf(index, 8, "%3d", audioContext->frame_number);
+//                    logFrame(aFrame, index, 0);
                 });
             } while (ret);
         }

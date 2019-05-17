@@ -35,8 +35,9 @@ int main(int argc, char *argv[]) {
         if (check("info")) return get_info(argv[2]);
         else if (check("mux_exp")) return mux_encode(argv[2], argv[3], argv[4]);
         else if (check("muxer")) return test_muxer(argv[2], argv[3], argv[4]);
+        else if (check("mux")) return test_mux(argv[2], argv[3], argv[4], 4);
         else if (check("demuxer")) return test_demuxer(argv[2], argv[3], argv[4]);
-        else if (check("concat")) return concat(argv[2], argv[3], &argv[4], 2);
+        else if (check("concat")) return concat(argv[2], &argv[3], 2);
         else if (check("mux_title")) return mux_title(argv[2], argv[3]);
         else if (check("x264_encode")) return x264_encode(argv[2], argv[3]);
         else if (check("filter_blur")) {
@@ -73,7 +74,8 @@ int main(int argc, char *argv[]) {
             FILE *fileB = fopen(argv[3], "rb");
             FILE *result = fopen(argv[4], "wb");
 
-            AudioMixFilter filter(AV_CH_LAYOUT_STEREO, AV_SAMPLE_FMT_FLTP, 44100, 1.6, 0.2);
+            AudioMixFilter filter(AV_CH_LAYOUT_STEREO, AV_CH_LAYOUT_STEREO, AV_SAMPLE_FMT_FLTP, AV_SAMPLE_FMT_FLTP,
+                                  44100, 44100, 1.6, 0.2);
             filter.init();
 
             AVFrame *frameA = av_frame_alloc();
@@ -96,7 +98,7 @@ int main(int argc, char *argv[]) {
                 read_pcm(fileA, frameA, frameA->nb_samples, 2, i, (AVSampleFormat) frameA->format);
                 read_pcm(fileB, frameB, frameB->nb_samples, 2, i, (AVSampleFormat) frameB->format);
 
-                filter.filter(frameA, frameB);
+                filter.filter(frameA, frameB, nullptr);
 
                 int sample_size = av_get_bytes_per_sample((AVSampleFormat) frameA->format);
 

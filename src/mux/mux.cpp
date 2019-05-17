@@ -6,6 +6,8 @@
 #include "../utils/log.h"
 #include "../codec/encode.h"
 
+#define DURATION  3
+
 Muxer *create_muxer(const char *out_filename) {
     auto *muxer = (Muxer *) malloc(sizeof(Muxer));
     AVFormatContext *fmt_ctx;
@@ -85,9 +87,9 @@ Media *add_media(Muxer *muxer, MediaConfig *config, AVDictionary *codec_opt) {
     switch (config->media_type) {
         case AVMEDIA_TYPE_VIDEO:
             muxer->video_idx = muxer->nb_media;
+            stream->time_base = (AVRational) {1, config->frame_rate};
             codec_ctx->codec_type = AVMEDIA_TYPE_VIDEO;
             codec_ctx->codec_id = config->codec_id;
-            stream->time_base = (AVRational) {1, config->frame_rate};
             codec_ctx->time_base = stream->time_base;
             codec_ctx->pix_fmt = (AVPixelFormat) config->format;
             codec_ctx->codec_id = config->codec_id;
@@ -101,9 +103,9 @@ Media *add_media(Muxer *muxer, MediaConfig *config, AVDictionary *codec_opt) {
             codec_ctx->qmax = 50;
 
             if (codec_ctx->codec_id == AV_CODEC_ID_H264) {
-                av_dict_set(&opt, "preset", "slow", 0);
+                av_dict_set(&opt, "preset", "superfast", 0);
                 av_dict_set(&opt, "tune", "zerolatency", 0);
-                //av_dict_set(&opt, "profile", "main", 0);
+                av_dict_set(&opt, "profile", "main", 0);
             }
 
             ret = avcodec_open2(codec_ctx, codec, &opt);
@@ -219,11 +221,11 @@ static int write_frame(AVFormatContext *fmt_ctx, const AVRational *time_base, AV
 
 //  log_packet(stream, pkt);
     av_packet_rescale_ts(pkt, *time_base, stream->time_base);
-//  if (av_compare_ts(pkt->pts, stream->time_base,
-//                    5000, (AVRational) {1, 1}) > 0) {
-//    LOGD("Stream #%d finished\n", stream->index);
-//    return 1;
-//  }
+    if (av_compare_ts(pkt->pts, stream->time_base,
+                      DURATION, (AVRational) {1, 1}) > 0) {
+        LOGD("Stream #%d finished\n", stream->index);
+        return 1;
+    }
     if (pkt->pts < 0) return 0;
     pkt->stream_index = stream->index;
     log_packet(stream, pkt);
@@ -239,6 +241,8 @@ static int write_frame(AVFormatContext *fmt_ctx, const AVRational *time_base, AV
 int mux(Muxer *muxer, MUX_CALLBACK callback, AVDictionary *opt) {
     int ret = 0;
 
+    AVBSFContext *mp4ToAnnexContext = nullptr;
+
     if (!(muxer->fmt_ctx->oformat->flags & AVFMT_NOFILE)) {
         LOGD("Opening file: %s\n", muxer->output_filename);
         ret = avio_open(&muxer->fmt_ctx->pb, muxer->output_filename, AVIO_FLAG_WRITE);
@@ -246,6 +250,20 @@ int mux(Muxer *muxer, MUX_CALLBACK callback, AVDictionary *opt) {
             LOGE("could not open %s (%s)\n", muxer->output_filename, av_err2str(ret));
             return -1;
         }
+    }
+
+    const AVBitStreamFilter *mp4ToAnnexFilter = av_bsf_get_by_name("h264_mp4toannexb");
+
+    if (!mp4ToAnnexFilter) {
+        LOGE("unable to find h264_mp4toannexb filter\n");
+        return -1;
+    }
+
+    ret = av_bsf_alloc(mp4ToAnnexFilter, &mp4ToAnnexContext);
+
+    if (ret < 0) {
+        LOGE("unable to get mp4ToAnnexFilter context: %s\n", av_err2str(ret));
+        return -1;
     }
 
     AVDictionary *mux_opt = nullptr;
@@ -264,6 +282,9 @@ int mux(Muxer *muxer, MUX_CALLBACK callback, AVDictionary *opt) {
     video_media->output_eof = false;
     audio_media->input_eof = false;
     audio_media->output_eof = false;
+
+    int64_t ts_shift = 0;
+    int shift_set = 0;
 
     while (!video_media->output_eof || !audio_media->output_eof) {
         LOGD("Start: Video(%d/%d), Audio:(%d/%d)\n", video_media->input_eof, video_media->output_eof,
@@ -284,12 +305,18 @@ int mux(Muxer *muxer, MUX_CALLBACK callback, AVDictionary *opt) {
 
             }
             ret = encode_packet(video_media->codec_ctx, video_media->input_eof ? nullptr : video_media->frame,
-                                muxer->packet,
-                                [&muxer, &video_media](AVPacket *packet) -> int {
-                                    return write_frame(muxer->fmt_ctx, &video_media->codec_ctx->time_base,
-                                                       video_media->stream,
-                                                       muxer->packet);
-                                });
+                                    muxer->packet,
+                                    [&muxer, &video_media, &ts_shift, &shift_set](AVPacket *packet) -> int {
+//                                        if (!shift_set && packet->pts < 0) {
+//                                            ts_shift = 0 - packet->pts;
+//                                            shift_set = true;
+//                                        }
+//                                        packet->pts += ts_shift;
+//                                        packet->dts += ts_shift;
+                                        return write_frame(muxer->fmt_ctx, &video_media->codec_ctx->time_base,
+                                                           video_media->stream,
+                                                           muxer->packet);
+                                    });
             if (ret < 0) {
                 LOGE("Video encode error\n");
                 break;
@@ -306,7 +333,13 @@ int mux(Muxer *muxer, MUX_CALLBACK callback, AVDictionary *opt) {
             }
             ret = encode_packet(audio_media->codec_ctx, audio_media->input_eof ? nullptr : audio_media->frame,
                                 muxer->packet,
-                                [&muxer, &audio_media](AVPacket *packet) -> int {
+                                [&muxer, &audio_media, &ts_shift, &shift_set](AVPacket *packet) -> int {
+//                                    if (!shift_set && packet->pts < 0) {
+//                                        ts_shift = 0 - packet->pts;
+//                                        shift_set = true;
+//                                    }
+//                                    packet->pts += ts_shift;
+//                                    packet->dts += ts_shift;
                                     return write_frame(muxer->fmt_ctx, &audio_media->codec_ctx->time_base,
                                                        audio_media->stream,
                                                        muxer->packet);

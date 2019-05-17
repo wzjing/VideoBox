@@ -54,31 +54,37 @@ int mux_title(const char *input_filename, const char *output_filename) {
             vOutStream = avformat_new_stream(outFormatContext, vEncode);
             vOutStream->index = outFormatContext->nb_streams - 1;
             vEncodeContext = avcodec_alloc_context3(vEncode);
-            if (!vEncodeContext) return error("video encode avcodec_alloc_context3", ret);
-            ret = avcodec_parameters_to_context(vEncodeContext, vInStream->codecpar);
+//            if (!vEncodeContext) return error("video encode avcodec_alloc_context3", ret);
+//            ret = avcodec_parameters_to_context(vEncodeContext, vInStream->codecpar);
             if (ret < 0) return error("video encode avcodec_parameters_to_context", ret);
-            vEncodeContext->time_base = (AVRational) {vInStream->r_frame_rate.den, vInStream->r_frame_rate.num};
-            vEncodeContext->framerate = vInStream->r_frame_rate;
-            vEncodeContext->gop_size = 12;
-            vEncodeContext->has_b_frames = 1;
-            vEncodeContext->max_b_frames = 10;
-            vEncodeContext->qmin = 10;
-            vEncodeContext->qmax = 50;
+
+            vEncodeContext->codec_id = vDecodeContext->codec_id;
+            vEncodeContext->width = vDecodeContext->width;
+            vEncodeContext->height = vDecodeContext->height;
+            vEncodeContext->pix_fmt = vDecodeContext->pix_fmt;
+            vEncodeContext->bit_rate = vDecodeContext->bit_rate;
+            vEncodeContext->has_b_frames = vDecodeContext->has_b_frames;
+            vEncodeContext->gop_size = vDecodeContext->gop_size;
+            vEncodeContext->qmin = vDecodeContext->qmin;
+            vEncodeContext->qmax = vDecodeContext->qmax;
+            vEncodeContext->time_base = (AVRational) {1, vInStream->r_frame_rate.num};
+            vEncodeContext->profile = vDecodeContext->profile;
+            vOutStream->time_base = vEncodeContext->time_base;
 
             AVDictionary * opt= nullptr;
             if(vEncodeContext->codec_id == AV_CODEC_ID_H264) {
-                av_dict_set(&opt, "preset", "slow", 0);
+                av_dict_set(&opt, "preset", "fast", 0);
                 av_dict_set(&opt, "tune", "zerolatency", 0);
-                av_dict_set(&opt, "profile", "main", 0);
+//                av_dict_set(&opt, "profile", "main", 0);
             }
             vOutStream->time_base = vEncodeContext->time_base;
+            if (outFormatContext->oformat->flags & AVFMT_GLOBALHEADER)
+                vEncodeContext->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
             ret = avcodec_open2(vEncodeContext, vEncode, &opt);
             if (ret < 0) return error("video encode avcodec_open2", ret);
             avcodec_parameters_from_context(vOutStream->codecpar, vEncodeContext);
             if (ret < 0) return error("video encode avcodec_parameters_from_context", ret);
 
-            if (outFormatContext->oformat->flags & AVFMT_GLOBALHEADER)
-                vEncodeContext->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
 
         } else if (!aInStream && inFormatContext->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
             aInStream = inFormatContext->streams[i];
@@ -99,17 +105,22 @@ int mux_title(const char *input_filename, const char *output_filename) {
             aOutStream->index = outFormatContext->nb_streams - 1;
             aEncodeContext = avcodec_alloc_context3(aEncode);
             if (!aEncodeContext) return error("audio encode avcodec_alloc_context3", ret);
-            ret = avcodec_parameters_to_context(aEncodeContext, aInStream->codecpar);
-            if (ret < 0) return error("audio encode avcodec_parameters_to_context", ret);
+//            ret = avcodec_parameters_to_context(aEncodeContext, aInStream->codecpar);
+//            if (ret < 0) return error("audio encode avcodec_parameters_to_context", ret);
+            aEncodeContext->sample_fmt = aDecodeContext->sample_fmt;
+            aEncodeContext->sample_rate = aDecodeContext->sample_rate;
+            aEncodeContext->bit_rate = aDecodeContext->bit_rate;
+            aEncodeContext->channel_layout = aDecodeContext->channel_layout;
+            aEncodeContext->channels = aDecodeContext->channels;
             aEncodeContext->time_base = (AVRational) {1, aEncodeContext->sample_rate};
             aOutStream->time_base = aEncodeContext->time_base;
+            if (outFormatContext->oformat->flags & AVFMT_GLOBALHEADER)
+                aEncodeContext->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
             ret = avcodec_open2(aEncodeContext, aEncode, nullptr);
             if (ret < 0) return error("audio encode avcodec_open2", ret);
             avcodec_parameters_from_context(aOutStream->codecpar, aEncodeContext);
             if (ret < 0) return error("audio encode avcodec_parameters_from_context", ret);
 
-            if (outFormatContext->oformat->flags & AVFMT_GLOBALHEADER)
-                aEncodeContext->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
         }
     }
 

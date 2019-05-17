@@ -93,12 +93,18 @@ int mix_filter(AVFrame *frameA, AVFrame *frameB) {
 
 }
 
-AudioMixFilter::AudioMixFilter(int channel_layout, int sample_fmt, int sample_rate, float volumeA, float volumeB) :
-        channel_layout(channel_layout),
-        sample_fmt(sample_fmt),
-        sample_rate(sample_rate),
+
+AudioMixFilter::AudioMixFilter(int sourceALayout, int sourceBLayout, int sourceAFormat, int sourceBFormat,
+                               int sourceARate, int sourceBRate, float volumeA, float volumeB) :
+        sourceALayout(sourceALayout),
+        sourceBLayout(sourceBLayout),
+        sourceAFormat(sourceAFormat),
+        sourceBFormat(sourceBFormat),
+        sourceARate(sourceARate),
+        sourceBRate(sourceBRate),
         sourceAVolume(volumeA),
         sourceBVolume(volumeB) {
+
 }
 
 int AudioMixFilter::init() {
@@ -108,41 +114,75 @@ int AudioMixFilter::init() {
         return -1;
     }
 
-    AVFilterContext *volume_a_ctx, *volume_b_ctx, *mix_ctx;
-    const AVFilter *bufferA, *bufferB, *volume_a, *volume_b, *mix, *sink;
+    AVFilterContext *formatAContext;
+    AVFilterContext *formatBContext;
+    AVFilterContext *volumeAContext;
+    AVFilterContext *volumeBContext;
+    AVFilterContext *mixContext;
+    const AVFilter *formatA;
+    const AVFilter *formatB;
+    const AVFilter *bufferA;
+    const AVFilter *bufferB;
+    const AVFilter *volume_a;
+    const AVFilter *volume_b;
+    const AVFilter *mix;
+    const AVFilter *sink;
 
     char args[512];
-    char ch_layout[64];
-    av_get_channel_layout_string(ch_layout, sizeof(ch_layout),
-                                 av_get_channel_layout_nb_channels(channel_layout), channel_layout);
+    char aLayout[64];
+    char bLayout[64];
+    av_get_channel_layout_string(aLayout, sizeof(aLayout),
+                                 av_get_channel_layout_nb_channels(sourceALayout), sourceALayout);
+    av_get_channel_layout_string(bLayout, sizeof(bLayout),
+                                 av_get_channel_layout_nb_channels(sourceBLayout), sourceBLayout);
+
+    const char *aFormat = av_get_sample_fmt_name((AVSampleFormat) sourceAFormat);
+    const char *bFormat = av_get_sample_fmt_name((AVSampleFormat) sourceBFormat);
+
+    int aChannels = av_get_channel_layout_nb_channels(sourceALayout);
+    int bChannels = av_get_channel_layout_nb_channels(sourceBLayout);
 
     // source a filter
-    snprintf(args, 512, "channel_layout=%s:sample_fmt=%d:sample_rate=%d:time_base=%d/%d",
-             ch_layout, sample_fmt, sample_rate, 1, sample_rate);
-    create_filter("abuffer", "src0", bufferA, bufferAContext, graph, args);
+    snprintf(args, 512, "channel_layout=%s:sample_fmt=%s:sample_rate=%d:time_base=%d/%d:channels=%d",
+             aLayout, aFormat, sourceARate, 1, sourceARate, aChannels);
+    create_filter("abuffer", "src_a", bufferA, bufferAContext, graph, args);
 
     // source b filter
-    create_filter("abuffer", "src1", bufferB, bufferBContext, graph, args);
+    snprintf(args, 512, "channel_layout=%s:sample_fmt=%s:sample_rate=%d:time_base=%d/%d:channels=%d",
+             bLayout, bFormat, sourceBRate, 1, sourceBRate, bChannels);
+    create_filter("abuffer", "src_b", bufferB, bufferBContext, graph, args);
+
+    // aformat a filter
+    snprintf(args, 512, "sample_fmts=%s:sample_rates=%d:channel_layouts=%s",
+             aFormat, sourceARate, aLayout);
+    create_filter("aformat", "format_a", formatA, formatAContext, graph, args);
+
+    // aformat b filter
+    snprintf(args, 512, "sample_fmts=%s:sample_rates=%d:channel_layouts=%s",
+             bFormat, sourceBRate, bLayout);
+    create_filter("aformat", "format_b", formatB, formatBContext, graph, args);
 
     // volume a filter
     snprintf(args, 512, "volume=%f", sourceAVolume);
-    create_filter("volume", "volume0", volume_a, volume_a_ctx, graph, args);
+    create_filter("volume", "volume_a", volume_a, volumeAContext, graph, args);
 
     // volume b filter
     snprintf(args, 512, "volume=%f", sourceBVolume);
-    create_filter("volume", "volume1", volume_b, volume_b_ctx, graph, args);
+    create_filter("volume", "volume_b", volume_b, volumeBContext, graph, args);
 
     // mix filter
-    create_filter("amix", "amix", mix, mix_ctx, graph, "");
+    create_filter("amix", "amix", mix, mixContext, graph, "");
 
     // sink filter
     create_filter("abuffersink", "sink", sink, sinkContext, graph, "");
 
-    avfilter_link(bufferAContext, 0, volume_a_ctx, 0);
-    avfilter_link(bufferBContext, 0, volume_b_ctx, 0);
-    avfilter_link(volume_a_ctx, 0, mix_ctx, 0);
-    avfilter_link(volume_b_ctx, 0, mix_ctx, 1);
-    avfilter_link(mix_ctx, 0, sinkContext, 0);
+    avfilter_link(bufferAContext, 0, formatAContext, 0);
+    avfilter_link(bufferBContext, 0, formatBContext, 0);
+    avfilter_link(formatAContext, 0, volumeAContext, 0);
+    avfilter_link(formatBContext, 0, volumeBContext, 0);
+    avfilter_link(volumeAContext, 0, mixContext, 0);
+    avfilter_link(volumeBContext, 0, mixContext, 1);
+    avfilter_link(mixContext, 0, sinkContext, 0);
     int ret = 0;
     ret = avfilter_graph_config(graph, nullptr);
     if (ret < 0) {
@@ -152,7 +192,7 @@ int AudioMixFilter::init() {
     return 0;
 }
 
-int AudioMixFilter::filter(AVFrame *sourceA, AVFrame *sourceB) {
+int AudioMixFilter::filter(AVFrame *sourceA, AVFrame *sourceB, AVFrame* result) {
 
     int ret;
 
@@ -170,11 +210,15 @@ int AudioMixFilter::filter(AVFrame *sourceA, AVFrame *sourceB) {
         return -1;
     }
     av_frame_unref(sourceA);
-//    LOGD("start receive\n");
-    ret = av_buffersink_get_frame(sinkContext, sourceA);
-    if (ret >= 0) {
-//        LOGD("got mix frame\n");
+    ret = av_buffersink_get_frame(sinkContext, result);
+    if (ret == 0) {
         return 0;
+    } else if (ret == AVERROR(EAGAIN)) {
+        LOGW("mix unavailable\n");
+        return ret;
+    } else if (ret == AVERROR_EOF) {
+        LOGW("mix eof\n");
+        return ret;
     } else {
         LOGE("unable to filter frame: %s\n", av_err2str(ret));
         return -1;

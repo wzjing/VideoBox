@@ -13,17 +13,26 @@ private:
     AVFilterContext *bufferAContext = nullptr;
     AVFilterContext *bufferBContext = nullptr;
     AVFilterContext *sinkContext = nullptr;
-    int channel_layout = AV_CH_LAYOUT_STEREO;
-    int sample_fmt = AV_SAMPLE_FMT_NONE;
-    int sample_rate = 0;
+    int sourceALayout = AV_CH_LAYOUT_STEREO;
+    int sourceBLayout = AV_CH_LAYOUT_STEREO;
+    int sourceAFormat = AV_SAMPLE_FMT_NONE;
+    int sourceBFormat = AV_SAMPLE_FMT_NONE;
+    int sourceARate = 0;
+    int sourceBRate = 0;
     float sourceAVolume = 1.0;
     float sourceBVolume = 1.0;
 public:
-    AudioMixFilter(int channel_layout, int sample_fmt, int sample_rate, float volumeA, float volumeB);
+    AudioMixFilter(int sourceALayout, int sourceBLayout,
+            int sourceAFormat,
+            int sourceBFormat,
+            int sourceARate,
+            int sourceBRate,
+            float volumeA,
+            float volumeB);
 
     int init();
 
-    int filter(AVFrame *sourceA, AVFrame *sourceB);
+    int filter(AVFrame *sourceA, AVFrame *sourceB, AVFrame* result);
 
     void destroy();
 };
