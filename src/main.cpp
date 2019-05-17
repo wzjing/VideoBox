@@ -38,6 +38,7 @@ int main(int argc, char *argv[]) {
         else if (check("mux")) return test_mux(argv[2], argv[3], argv[4], 4);
         else if (check("demuxer")) return test_demuxer(argv[2], argv[3], argv[4]);
         else if (check("concat")) return concat(argv[2], &argv[3], 2);
+        else if (check("concat_bgm")) return concat_with_bgm(argv[2], argv[3], &argv[4], 2);
         else if (check("mux_title")) return mux_title(argv[2], argv[3]);
         else if (check("x264_encode")) return x264_encode(argv[2], argv[3]);
         else if (check("filter_blur")) {

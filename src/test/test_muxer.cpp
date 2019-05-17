@@ -71,8 +71,11 @@ encode(AVFormatContext *formatContext, AVCodecContext *context, AVStream *stream
         ret = avcodec_receive_packet(context, &packet);
         if (ret == 0) {
             if (stream->index == 0) {
-                logPacket(&packet, "Video");
+//                logPacket(&packet, "Video");
+            } else {
+                logPacket(&packet, "Audio");
             }
+            if (packet.pts<0) return 1;
             ret = write(formatContext, context, stream, &packet);
             if (ret != 0) return 0;
         } else if (ret == AVERROR(EAGAIN)) {
@@ -130,8 +133,9 @@ int test_mux(const char *output_filename, const char *input_video, const char *i
     AVDictionary * opt = nullptr;
 //    av_dict_set(&opt, "subq", "6", 0);
     av_dict_set(&opt, "preset", "superfast", 0);
+    av_dict_set(&opt, "tune", "zerolatency", 0);
+    av_dict_set(&opt, "profile", "main", 0);
     if (formatContext->oformat->flags & AVFMT_GLOBALHEADER) {
-        LOGW("set global header\n");
         videoContext->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
     }
     avcodec_open2(videoContext, videoCodec, &opt);
@@ -146,7 +150,6 @@ int test_mux(const char *output_filename, const char *input_video, const char *i
     audioStream->time_base = (AVRational) {1, 44100};
     audioContext->time_base = audioStream->time_base;
     if (formatContext->oformat->flags & AVFMT_GLOBALHEADER) {
-        LOGW("set global header\n");
         audioContext->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
     }
     avcodec_open2(audioContext, audioCodec, nullptr);

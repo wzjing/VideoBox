@@ -2,16 +2,19 @@
 #include "log.h"
 
 void logPacket(AVPacket *packet, const char *tag) {
-    LOGD("packet(\033[32m%s\033[0m)->\tstream: %d\tkey:%s\tsize:%-8d\tPTS: %-8ld\tDTS: %-8ld\tCorrupted: %s\tDisposable: %s\tDiscard: %s\n",
+    char flags[3];
+    flags[0] = packet->flags & AV_PKT_FLAG_KEY ? 'K' : '-';
+    flags[1] = packet->flags & AV_PKT_FLAG_DISCARD ? 'D' : '-';
+    LOGD("Packet(\033[32m%s\033[0m)->\tstream: %d\tflags:\033[34m%s\033[0m\tsize:%-8d\tPTS: %-8ld\tDTS: %-8ld\tDuration: %-8ld\tside_data: %s(%d)\n",
          tag,
          packet->stream_index,
-         packet->flags & AV_PKT_FLAG_KEY ? "Yes" : "No",
+         flags,
          packet->size,
          packet->pts,
          packet->dts,
-         packet->flags & AV_PKT_FLAG_CORRUPT? "Yes":"No",
-         packet->flags & AV_PKT_FLAG_DISPOSABLE? "Yes":"No",
-         packet->flags & AV_PKT_FLAG_DISCARD? "Yes":"No");
+         packet->duration,
+         packet->side_data ? av_packet_side_data_name(packet->side_data->type) : "none",
+         packet->side_data ? packet->side_data->size : 0);
 }
 
 void logFrame(AVFrame *frame, const char *tag, int isVideo) {

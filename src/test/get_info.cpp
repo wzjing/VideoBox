@@ -67,21 +67,21 @@ int get_info(const char *input_filename) {
     while (av_read_frame(fmt_ctx, &pkt) == 0) {
         AVPacket packet = pkt;
         if (pkt.stream_index == video_index) {
-            logPacket(&packet, "VIDEO");
+//            logPacket(&packet, "VIDEO");
             do {
                 ret = decode_packet(videoContext, frame, &packet, [&videoContext](AVFrame *vFrame) -> void {
                     char index[8];
                     snprintf(index, 8, "%3d", videoContext->frame_number);
-                    logFrame(vFrame, index, 1);
+//                    logFrame(vFrame, index, 1);
                 });
             } while (ret);
         } else {
-//            logPacket(&packet, "AUDIO");
+            logPacket(&packet, "AUDIO");
             do {
                 ret = decode_packet(audioContext, frame, &packet, [&audioContext](AVFrame *aFrame) -> void {
                     char index[8];
                     snprintf(index, 8, "%3d", audioContext->frame_number);
-//                    logFrame(aFrame, index, 0);
+                    logFrame(aFrame, index, 0);
                 });
             } while (ret);
         }

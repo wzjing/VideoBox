@@ -3,15 +3,9 @@
 //
 
 #include "concat.h"
-#include "utils/log.h"
 #include "codec/decode.h"
 #include "codec/encode.h"
 #include "filter/mix_filter.h"
-
-int error(const char *message) {
-    LOGE("error: file %s line %d\n\t\033[31m%s\033[0m\n", __FILE__, __LINE__, message);
-    return -1;
-}
 
 int concat_with_bgm(const char *output_filename, const char *bgm_file, char **video_files, int nb_videos) {
     int ret = 0;
@@ -194,10 +188,6 @@ int concat_with_bgm(const char *output_filename, const char *bgm_file, char **vi
         uint64_t next_video_dts = 0;
         uint64_t next_audio_pts = 0;
         uint64_t next_audio_dts = 0;
-        uint64_t video_start_offset = 0;
-//        int video_offset_set = 0;
-        uint64_t audio_start_offset = 0;
-        int audio_offset_set = 0;
         do {
             ret = av_read_frame(inFormatContext, packet);
             if (ret == AVERROR_EOF) {
@@ -212,12 +202,6 @@ int concat_with_bgm(const char *output_filename, const char *bgm_file, char **vi
                 int64_t old_pts = packet->pts;
                 int64_t old_dts = packet->dts;
 
-//                if (!video_offset_set && packet->dts < 0) {
-//                    video_start_offset = 0 - packet->dts;
-//                    video_offset_set = 1;
-//                }
-//                packet->pts += video_start_offset;
-//                packet->dts += video_start_offset;
                 packet->stream_index = videoStream->index;
 
                 av_packet_rescale_ts(packet, inVideoStream->time_base, videoStream->time_base);
@@ -231,19 +215,14 @@ int concat_with_bgm(const char *output_filename, const char *bgm_file, char **vi
             } else if (packet->stream_index == inAudioStream->index) {
                 int64_t old_pts = packet->pts;
                 int64_t old_dts = packet->dts;
-                if (!audio_offset_set && packet->pts < 0) {
-                    audio_start_offset = 0 - packet->pts;
-                    audio_offset_set = 1;
-                }
-                packet->pts += audio_start_offset;
-                packet->dts += audio_start_offset;
+
                 packet->stream_index = audioStream->index;
                 av_packet_rescale_ts(packet, inAudioStream->time_base, audioStream->time_base);
                 packet->pts += last_audio_pts;
                 packet->dts += last_audio_dts;
                 next_audio_pts = packet->pts + packet->duration;
                 next_audio_dts = packet->dts + packet->duration;
-//                logPacket(packet, "origin");
+                logPacket(packet, "origin");
 
                 // decode bgm packet
                 while (true) {
