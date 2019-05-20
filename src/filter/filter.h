@@ -5,9 +5,9 @@
 #ifndef VIDEOBOX_FILTER_H
 #define VIDEOBOX_FILTER_H
 
-#include <libavcodec/avcodec.h>
 
 extern "C" {
+#include <libavcodec/avcodec.h>
 #include <libavfilter/avfilter.h>
 #include <libavfilter/buffersrc.h>
 #include <libavfilter/buffersink.h>
@@ -15,53 +15,23 @@ extern "C" {
 #include <libavutil/opt.h>
 }
 
-struct AFilterIO {
-    AVFilterContext *buffer = nullptr;
-    AVFilterInOut *input = nullptr;
-    const char *pod = nullptr;
-};
-
-struct VFilterIO {
-    int width = 0;
-    int height =0;
-    int format = 0;
-    AVRational timebase;
-    AVRational aspectRatio;
-    const char * pod = nullptr;
-};
-
 class Filter {
 protected:
-    const char *filter_description = nullptr;
-    AVFilterGraph *filterGraph = nullptr;
-    FilterIO *inputs = nullptr;
-    FilterIO *outputs = nullptr;
-    int nb_input = 0;
-    int chainAvailable = 0;
-
-    FilterIO *findInputByPod();
-
-    FilterIO *findOutputByPod();
-
-    int addInput(AVFilterInOut *input, AVFilterContext *context, const char *pod);
-
-    int addOutput(AVFilterInOut *output, AVFilterContext *context, const char *pod);
-
-    int createChain();
-
-    int clearChain();
-
+    AVFilterContext *buffersink_ctx;
+    AVFilterContext *buffersrc_ctx;
+    AVFilterGraph *filter_graph;
+    const char *description = nullptr;
 public:
 
     Filter() = default;
 
-    int setDescription(const char *description);
+    int init(const char *filter_descr);
 
-    int setInput(AVCodecContext *codecContext, const char *pod);
+    AVFilterContext *getInputCtx();
 
-    int setOutput(AVCodecContext *codecContext, const char *pod);
+    AVFilterContext *getOutputCtx();
 
-    int filter(AVFrame *frame, const char *pod);
+    void dumpGraph();
 };
 
 

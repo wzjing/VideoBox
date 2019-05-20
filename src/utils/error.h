@@ -4,8 +4,9 @@
 #include <cstdio>
 
 #define check(ret, message) if(ret<0) {fprintf(stderr, "Error: %s\n", message);return -1;}
+#define error(ret, message) error_msg(ret, message, __FILE__, __LINE__)
 
-inline int error(int ret, const char *message) {
+inline int error_msg(int ret, const char *message, const char* filename, int line) {
     fprintf(stderr, "Error: %s\n", message);
     return ret;
 }

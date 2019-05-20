@@ -23,6 +23,7 @@ extern "C" {
 #include <libavutil/frame.h>
 #include <libavutil/pixdesc.h>
 #include <libavutil/opt.h>
+#include <libavutil/timestamp.h>
 }
 
 void logMetadata(AVDictionary* metadata, const char * tag);

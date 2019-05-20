@@ -10,10 +10,16 @@ int blur_filter(AVFrame *frame) {
     AVFilterContext *blurContext = nullptr;
     AVFilterContext *textContext = nullptr;
     AVFilterContext *sinkContext = nullptr;
+    AVFilterContext *canvasContext = nullptr;
+    AVFilterContext *overlayContext = nullptr;
+    AVFilterContext *formatContext = nullptr;
     const AVFilter *buffer = nullptr;
     const AVFilter *blur = nullptr;
     const AVFilter *text = nullptr;
     const AVFilter *sink = nullptr;
+    const AVFilter *canvas = nullptr;
+    const AVFilter *overlay = nullptr;
+    const AVFilter *format = nullptr;
     int ret = 0;
 
     graph = avfilter_graph_alloc();
@@ -28,10 +34,19 @@ int blur_filter(AVFrame *frame) {
     create_filter("drawtext", "text", text, textContext, graph,
                   "fontsize=50:fontcolor=white:text='Subtitle':x=w/2-tw/2:y=h/2-th/2");
     create_filter("buffersink", "sink", sink, sinkContext, graph, "");
+    create_filter("color", "canvas", canvas, canvasContext, graph, "white:200x200");
+    create_filter("overlay", "mark", overlay, overlayContext, graph, "500:500");
+//    create_filter("format", "pix", format, formatContext, graph, "pix_fmts=yuv420p");
+
 
     avfilter_link(bufferContext, 0, blurContext, 0);
-    avfilter_link(blurContext, 0, textContext, 0);
-    avfilter_link(textContext, 0, sinkContext, 0);
+
+    avfilter_link(canvasContext, 0, textContext, 0);
+//    avfilter_link(textContext, 0, formatContext, 0);
+
+    avfilter_link(blurContext, 0, overlayContext, 0);
+    avfilter_link(textContext, 0, overlayContext, 1);
+    avfilter_link(overlayContext, 0, sinkContext, 0);
 
     ret = avfilter_graph_config(graph, nullptr);
     if (ret < 0) {

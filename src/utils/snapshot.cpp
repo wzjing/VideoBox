@@ -49,7 +49,7 @@ int save_yuv(uint8_t **buf, const int *wrap, int width, int height, const char *
     return 0;
 }
 
-int save_av_frame(AVFrame *frame, char *filename) {
+int save_av_frame(AVFrame *frame, const char *filename) {
     switch (frame->format) {
         case AV_PIX_FMT_RGB24:
             return save_ppm(frame->data[0], frame->linesize[0], frame->width, frame->height, filename);

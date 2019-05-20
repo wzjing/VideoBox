@@ -74,7 +74,7 @@ int mux_title(const char *input_filename, const char *output_filename) {
     ret = avformat_find_stream_info(inFormatContext, nullptr);
     if (ret < 0) return error("avformat_find_stream_info()", ret);
 
-    ret = avformat_alloc_output_context2(&outFormatContext, nullptr, "mp4", output_filename);
+    ret = avformat_alloc_output_context2(&outFormatContext, nullptr, nullptr, output_filename);
     if (ret < 0) return error("avformat_alloc_output_context2()", ret);
 
     int i = 0;

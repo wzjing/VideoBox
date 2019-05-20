@@ -23,6 +23,6 @@ int save_ppm(uint8_t *buf, int wrap, int width, int height,
 int save_yuv(uint8_t **buf, const int *wrap, int width,
              int height, const char *filename);
 
-int save_av_frame(AVFrame *frame, char *filename);
+int save_av_frame(AVFrame *frame, const char *filename);
 
 #endif //VIDEOBOX_SNAPSHOT_H

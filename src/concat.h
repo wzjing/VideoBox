@@ -21,13 +21,11 @@ typedef struct Fragment {
 
 } Framgment;
 
-int concat_with_bgm(const char *output_filename, const char *bgm_file, char **video_files, int nb_videos);
-
-int concat(const char *output_filename, char **video_files, int nb_videos);
-
 inline int error(const char *message) {
     LOGE("error: file %s line %d\n\t\033[31m%s\033[0m\n", __FILE__, __LINE__, message);
     return -1;
 }
+
+int concat(const char *output_filename, char *bgm_file, char **video_files, int nb_videos);
 
 #endif //VIDEOBOX_CONCAT_H

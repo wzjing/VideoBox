@@ -30,7 +30,7 @@ link_directories(${FFMPEG_LIBRARY_DIRS})
 #include_directories(${FFMPEG_INCLUDE_DIRS})
 
 message(STATUS "include: ${FFMPEG_INCLUDE_DIRS}")
-message(STATUS "libs   : ${FFMPEG_LIBRARY_DIRS}")
+message(STATUS "libs   : ${FFMPEG_STATIC_LIBRARIES}")
 
 set(SOURCES src/main.cpp
         src/mux_title.cpp
@@ -80,8 +80,8 @@ set(SOURCES src/main.cpp
         src/test/get_info.cpp
         src/utils/error.cpp
         src/utils/error.h
-        #src/filter/filter.cpp
-        #src/filter/filter.h
+        src/filter/filter.cpp
+        src/filter/filter.h
         )
 
 add_executable(VideoBox ${SOURCES})

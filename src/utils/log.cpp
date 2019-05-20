@@ -48,13 +48,15 @@ void logFrame(AVFrame *frame, const char *tag, int isVideo) {
              frame->width,
              frame->height);
     } else {
-        LOGD("AFrame%-8s->type: audio\tPTS: %8ld\tDTS: %8ld\trate: %d\tchannels: %d\tfmt:%d\n",
+        LOGD("AFrame%-16s->\ttype: audio\tPTS: %8ld\tDTS: %8ld\trate: %d\tchannels: %d\tfmt: %s\tsize: %d|%d\n",
              tag_str,
              frame->pts,
              frame->pkt_dts,
              frame->sample_rate,
              frame->channels,
-             frame->format);
+             av_get_sample_fmt_name((AVSampleFormat)frame->format),
+             frame->linesize[0],
+             frame->linesize[1]);
     }
 }
 
