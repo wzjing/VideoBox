@@ -109,7 +109,7 @@ int BlurFilter::filter(AVFrame *source) {
         LOGE("unable to add frame to buffer context");
         return -1;
     }
-    av_frame_unref(source);
+//    av_frame_unref(source);
     if (av_buffersink_get_frame(sinkContext, source) >= 0) {
         return 0;
     } else {

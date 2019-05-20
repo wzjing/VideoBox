@@ -8,6 +8,49 @@ int error(const char *message, int ret) {
     return -1;
 }
 
+//static int64_t mux_duration = 0;
+
+//int write(AVFormatContext *formatContext, AVCodecContext *context, AVStream *stream, AVPacket *packet) {
+//    packet->stream_index = stream->index;
+//    av_packet_rescale_ts(packet, context->time_base, stream->time_base);
+//    if (av_compare_ts(packet->pts, stream->time_base, mux_duration, (AVRational) {1, 1}) > 0) {
+//        LOGI("Stream #%d finished\n", stream->index);
+//        return 1;
+//    }
+//
+//    int ret = av_interleaved_write_frame(formatContext, packet);
+//    if (ret != 0) {
+//        LOGE("write frame error: %s\n", av_err2str(ret));
+//        return 1;
+//    }
+//    return 0;
+//}
+//
+//int
+//encode(AVFormatContext *formatContext, AVCodecContext *context, AVStream *stream, AVFrame *frame) {
+//    int ret = 0;
+//    AVPacket packet{nullptr};
+//    avcodec_send_frame(context, frame);
+//    do {
+//        ret = avcodec_receive_packet(context, &packet);
+//        if (ret == 0) {
+//            if (stream->index == 0) {
+////                logPacket(&packet, "Video");
+//            } else {
+//                logPacket(&packet, "Audio");
+//            }
+//            if (packet.pts<0) return 1;
+//            ret = write(formatContext, context, stream, &packet);
+//            if (ret != 0) return 0;
+//        } else if (ret == AVERROR(EAGAIN)) {
+//            return 1;
+//        } else {
+//            LOGW("encode warning: %s\n", av_err2str(ret));
+//            return 0;
+//        }
+//    } while (true);
+//}
+
 int mux_title(const char *input_filename, const char *output_filename) {
     AVFormatContext *inFormatContext = nullptr;
     AVFormatContext *outFormatContext = nullptr;
@@ -53,29 +96,27 @@ int mux_title(const char *input_filename, const char *output_filename) {
             if (!vEncode) return error("video encode avcodec_find_decoder", ret);
             vOutStream = avformat_new_stream(outFormatContext, vEncode);
             vOutStream->index = outFormatContext->nb_streams - 1;
+            av_dict_copy(&vOutStream->metadata, vInStream->metadata, 0);
             vEncodeContext = avcodec_alloc_context3(vEncode);
-//            if (!vEncodeContext) return error("video encode avcodec_alloc_context3", ret);
-//            ret = avcodec_parameters_to_context(vEncodeContext, vInStream->codecpar);
+            ret = avcodec_parameters_to_context(vEncodeContext, vInStream->codecpar);
             if (ret < 0) return error("video encode avcodec_parameters_to_context", ret);
-
             vEncodeContext->codec_id = vDecodeContext->codec_id;
             vEncodeContext->width = vDecodeContext->width;
             vEncodeContext->height = vDecodeContext->height;
             vEncodeContext->pix_fmt = vDecodeContext->pix_fmt;
             vEncodeContext->bit_rate = vDecodeContext->bit_rate;
             vEncodeContext->has_b_frames = vDecodeContext->has_b_frames;
-            vEncodeContext->gop_size = vDecodeContext->gop_size;
+            vEncodeContext->gop_size = 30;
             vEncodeContext->qmin = vDecodeContext->qmin;
             vEncodeContext->qmax = vDecodeContext->qmax;
-            vEncodeContext->time_base = (AVRational) {1, vInStream->r_frame_rate.num};
+            vEncodeContext->time_base = (AVRational) {vInStream->r_frame_rate.den, vInStream->r_frame_rate.num};
             vEncodeContext->profile = vDecodeContext->profile;
             vOutStream->time_base = vEncodeContext->time_base;
 
-            AVDictionary * opt= nullptr;
-            if(vEncodeContext->codec_id == AV_CODEC_ID_H264) {
+            AVDictionary *opt = nullptr;
+            if (vEncodeContext->codec_id == AV_CODEC_ID_H264) {
                 av_dict_set(&opt, "preset", "fast", 0);
                 av_dict_set(&opt, "tune", "zerolatency", 0);
-//                av_dict_set(&opt, "profile", "main", 0);
             }
             vOutStream->time_base = vEncodeContext->time_base;
             if (outFormatContext->oformat->flags & AVFMT_GLOBALHEADER)
@@ -103,10 +144,11 @@ int mux_title(const char *input_filename, const char *output_filename) {
             if (!aEncode) return error("audio encode avcodec_find_decoder", ret);
             aOutStream = avformat_new_stream(outFormatContext, aEncode);
             aOutStream->index = outFormatContext->nb_streams - 1;
+            av_dict_copy(&aOutStream->metadata, aInStream->metadata, 0);
             aEncodeContext = avcodec_alloc_context3(aEncode);
             if (!aEncodeContext) return error("audio encode avcodec_alloc_context3", ret);
-//            ret = avcodec_parameters_to_context(aEncodeContext, aInStream->codecpar);
-//            if (ret < 0) return error("audio encode avcodec_parameters_to_context", ret);
+            ret = avcodec_parameters_to_context(aEncodeContext, aInStream->codecpar);
+            if (ret < 0) return error("audio encode avcodec_parameters_to_context", ret);
             aEncodeContext->sample_fmt = aDecodeContext->sample_fmt;
             aEncodeContext->sample_rate = aDecodeContext->sample_rate;
             aEncodeContext->bit_rate = aDecodeContext->bit_rate;
@@ -124,8 +166,15 @@ int mux_title(const char *input_filename, const char *output_filename) {
         }
     }
 
-    logContext(vEncodeContext, "H264", 1);
-    logContext(aEncodeContext, "AAC", 0);
+    logContext(vDecodeContext, "In", 1);
+    logContext(aDecodeContext, "In", 0);
+    logContext(vEncodeContext, "Out", 1);
+    logContext(aEncodeContext, "Out", 0);
+
+    logStream(vInStream, "In", 1);
+    logStream(aInStream, "In", 0);
+    logStream(vOutStream, "Out", 1);
+    logStream(aOutStream, "Out", 0);
 
     if (!vDecodeContext || !aDecodeContext) return error("input file don't have video or audio track", -1);
 
@@ -146,11 +195,13 @@ int mux_title(const char *input_filename, const char *output_filename) {
         if (!got_video && inPacket->stream_index == vInStream->index) {
             avcodec_send_packet(vDecodeContext, inPacket);
             if (avcodec_receive_frame(vDecodeContext, inVideoFrame) == 0) {
+                logFrame(inVideoFrame, "Source", 1);
                 got_video = 1;
             }
         } else if (!got_audio && inPacket->stream_index == aInStream->index) {
             avcodec_send_packet(aDecodeContext, inPacket);
             if (avcodec_receive_frame(aDecodeContext, inAudioFrame) == 0) {
+                logFrame(inAudioFrame, "Source", 0);
                 got_audio = 1;
             }
         }
@@ -181,7 +232,8 @@ int mux_title(const char *input_filename, const char *output_filename) {
     }
 
     // Encode output
-    AVFrame *outVideoFrame = nullptr;
+    AVFrame *outVideoFrame = av_frame_alloc();
+    AVFrame *outAudioFrame = av_frame_alloc();
     AVPacket *outPacket = av_packet_alloc();
 
     int64_t video_pts = 0;
@@ -195,42 +247,56 @@ int mux_title(const char *input_filename, const char *output_filename) {
     // erase audio frame data
     int sample_size = av_get_bytes_per_sample((AVSampleFormat) inAudioFrame->format);
     for (i = 0; i < inAudioFrame->channels; i++) {
-        LOGD("clean %d/%d\n", i, inAudioFrame->linesize[i]);
         memset(inAudioFrame->data[i], '0', inAudioFrame->nb_samples * sample_size);
     }
 
-    i = 0;
-    while (encode_video || encode_audio) {
-        if (!encode_audio || av_compare_ts(video_pts, vEncodeContext->time_base,
-                                                            audio_pts, aEncodeContext->time_base) <= 0) {
+    outVideoFrame->width = inVideoFrame->width;
+    outVideoFrame->height = inVideoFrame->height;
+    outVideoFrame->format = inVideoFrame->format;
+    av_frame_get_buffer(outVideoFrame, 0);
+    outAudioFrame->format = inAudioFrame->format;
+    outAudioFrame->nb_samples = inAudioFrame->nb_samples;
+    outAudioFrame->sample_rate = inAudioFrame->sample_rate;
+    outAudioFrame->channel_layout = inAudioFrame->channel_layout;
+    av_frame_get_buffer(outAudioFrame, 0);
 
+    i = 0;
+    int index = 0;
+    while (encode_video || encode_audio) {
+        if (!encode_audio || (encode_video && av_compare_ts(video_pts, vEncodeContext->time_base,
+                                                            audio_pts, aEncodeContext->time_base) <= 0)) {
+            LOGD("Video Time: %s(%ld-%d/%d) ratio: %f\n",
+                 av_ts2timestr(video_pts, &vEncodeContext->time_base),
+                 video_pts,
+                 vEncodeContext->time_base.num,
+                 vEncodeContext->time_base.den,
+                 av_q2d(vEncodeContext->time_base));
             if (av_compare_ts(video_pts, vEncodeContext->time_base,
-                              duration, (AVRational) {1, 1}) > 0) {
+                              duration, (AVRational) {1, 1}) > 0 || index>=59) {
                 outVideoFrame = nullptr;
             } else {
+                index++;
                 i++;
                 float blur = 30.0 - i > 0 ? 30 - i : 0;
-                LOGD("blur: %f\n", blur);
                 blurFilter.setConfig(blur, 6);
                 blurFilter.init();
-                outVideoFrame = av_frame_clone(inVideoFrame);
-                blurFilter.filter(outVideoFrame);
+                av_frame_copy(outVideoFrame, inVideoFrame);
+                av_frame_copy_props(outVideoFrame, inVideoFrame);
+                outVideoFrame->pict_type = AV_PICTURE_TYPE_NONE;
+                ret = blurFilter.filter(outVideoFrame);
+                if (ret < 0) goto error;
                 blurFilter.destroy();
-                if (!outVideoFrame) {
-                    LOGE("unable to clone video frame\n");
-                    goto error;
-                }
                 outVideoFrame->pts = video_pts;
-                video_pts++;
+                video_pts +=1; // vEncodeContext->time_base.num;
+                logFrame(outVideoFrame, "Out", 1);
             }
             avcodec_send_frame(vEncodeContext, outVideoFrame);
-            LOGD("send video frame\n");
             while (true) {
                 ret = avcodec_receive_packet(vEncodeContext, outPacket);
                 if (ret == 0) {
-                    LOGD("received video packet: %ld\n", outPacket->pts);
                     av_packet_rescale_ts(outPacket, vEncodeContext->time_base, vOutStream->time_base);
                     outPacket->stream_index = vOutStream->index;
+                    logPacket(outPacket, "V");
                     ret = av_interleaved_write_frame(outFormatContext, outPacket);
                     if (ret < 0) {
                         LOGE("write video frame error: %s\n", av_err2str(ret));
@@ -247,7 +313,6 @@ int mux_title(const char *input_filename, const char *output_filename) {
                     goto error;
                 }
             }
-            av_frame_unref(outVideoFrame);
         } else {
             if (av_compare_ts(audio_pts, aEncodeContext->time_base,
                               duration, (AVRational) {1, 1}) >= 0) {
@@ -257,13 +322,12 @@ int mux_title(const char *input_filename, const char *output_filename) {
                 audio_pts += inAudioFrame->nb_samples;
             }
             avcodec_send_frame(aEncodeContext, inAudioFrame);
-            LOGD("send audio frame\n");
             while (true) {
                 ret = avcodec_receive_packet(aEncodeContext, outPacket);
                 if (ret == 0) {
-                    LOGD("received audio packet: %ld\n", outPacket->pts);
                     av_packet_rescale_ts(outPacket, aEncodeContext->time_base, aOutStream->time_base);
                     outPacket->stream_index = aOutStream->index;
+//                    logPacket(outPacket, "A");
                     ret = av_interleaved_write_frame(outFormatContext, outPacket);
                     if (ret < 0) {
                         LOGE("write audio frame error: %s\n", av_err2str(ret));
@@ -283,6 +347,9 @@ int mux_title(const char *input_filename, const char *output_filename) {
             }
         }
     }
+
+    avcodec_flush_buffers(vEncodeContext);
+    avcodec_flush_buffers(aEncodeContext);
 
     av_write_trailer(outFormatContext);
     LOGD("trailer write\n");

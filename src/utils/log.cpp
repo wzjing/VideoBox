@@ -5,49 +5,56 @@ void logPacket(AVPacket *packet, const char *tag) {
     char flags[3];
     flags[0] = packet->flags & AV_PKT_FLAG_KEY ? 'K' : '-';
     flags[1] = packet->flags & AV_PKT_FLAG_DISCARD ? 'D' : '-';
-    LOGD("Packet(\033[32m%s\033[0m)->\tstream: %d\tflags:\033[34m%s\033[0m\tsize:%-8d\tPTS: %-8ld\tDTS: %-8ld\tDuration: %-8ld\tside_data: %s(%d)\n",
-         tag,
+    char tag_str[20];
+    snprintf(tag_str, 20, "[\033[33m%s\033[0m]", tag);
+    LOGD("Packet%-16s->\tstream: %d\tPTS: %8ld\tDTS: %8ld\tDuration: %8ld\tflags:\033[34m%-8s\033[0m\tsize:%8d\tside_data: %s(%d)\n",
+         tag_str,
          packet->stream_index,
-         flags,
-         packet->size,
          packet->pts,
          packet->dts,
          packet->duration,
+         flags,
+         packet->size,
          packet->side_data ? av_packet_side_data_name(packet->side_data->type) : "none",
          packet->side_data ? packet->side_data->size : 0);
 }
 
 void logFrame(AVFrame *frame, const char *tag, int isVideo) {
+    char tag_str[20];
+    snprintf(tag_str, 20, "[\033[33m%s\033[0m]", tag);
     if (isVideo) {
         const char *type;
         switch (frame->pict_type) {
             case AV_PICTURE_TYPE_I:
-                type = "\033[34mI\033[0m";
+                type = "\033[36mI\033[0m";
                 break;
             case AV_PICTURE_TYPE_B:
-                type = "B";
+                type = "\033[34mB\033[0m";
                 break;
             case AV_PICTURE_TYPE_P:
-                type = "P";
+                type = "\033[35mP\033[0m";
                 break;
             default:
-                type = "--";
+                type = "\033[33m-\033[0m";
                 break;
         }
-        LOGD("VFrame(\033[33m%s\033[0m)->\ttype:%s\tfmt:%d\tsize: %dx%d\tPTS: %8ld\n",
-             tag,
+        LOGD("VFrame%-16s->\ttype: video\tPTS: %8ld\tDTS: %8ld\tDuration: %8ld\tpict: %-16s\tfmt:%s\tsize: %dx%d\n",
+             tag_str,
+             frame->pts,
+             frame->pkt_dts,
+             frame->pkt_duration,
              type,
-             frame->format,
+             av_get_pix_fmt_name((AVPixelFormat)frame->format),
              frame->width,
-             frame->height,
-             frame->pts);
+             frame->height);
     } else {
-        LOGD("AFrame(\033[33m%s\033[0m)->\trate: %d\tchannels: %d\tfmt:%d\tPTS: %ld\n",
-             tag,
+        LOGD("AFrame%-8s->type: audio\tPTS: %8ld\tDTS: %8ld\trate: %d\tchannels: %d\tfmt:%d\n",
+             tag_str,
+             frame->pts,
+             frame->pkt_dts,
              frame->sample_rate,
              frame->channels,
-             frame->format,
-             frame->pts);
+             frame->format);
     }
 }
 
@@ -120,12 +127,13 @@ void logContext(AVCodecContext *context, const char *tag, int isVideo) {
              context->flags & AV_CODEC_FLAG_GLOBAL_HEADER ? "YES" : "NO"
         );
     } else {
-        LOGD("\n\033[34mAudio Context\033[0m(\033[33m%s\033[0m):"
+        LOGD("\n\033[34mAudio Context\033[0m(\033[33m%s\033[0m):\n"
              "\tcodec: %s\n"
              "\tsample:%s\n"
              "\tsample_rate: %d\n"
              "\tbitrate:  %ld\n"
              "\ttimebase: {%d, %d}\n"
+             "\textradata_size: %d\n"
              "\tglobal_header: %s\n\n",
              tag,
              avcodec_get_name(context->codec_id),
@@ -134,6 +142,7 @@ void logContext(AVCodecContext *context, const char *tag, int isVideo) {
              context->bit_rate,
              context->time_base.num,
              context->time_base.den,
+             context->extradata_size,
              context->flags & AV_CODEC_FLAG_GLOBAL_HEADER ? "YES" : "NO"
         );
     }

@@ -55,19 +55,19 @@ int get_info(const char *input_filename) {
     avcodec_parameters_to_context(audioContext, audioStream->codecpar);
     avcodec_open2(audioContext, audioCodec, nullptr);
 
+    logContext(videoContext, "VideoCodecContext", 1);
+    logStream(videoStream, "VideoStream", 1);
+    logMetadata(videoStream->metadata, "VideoStream");
+
     AVPacket pkt;
     av_init_packet(&pkt);
 
     AVFrame *frame = av_frame_alloc();
 
-    logContext(videoContext, "VideoCodecContext", 1);
-    logStream(videoStream, "VideoStream", 1);
-    logMetadata(videoStream->metadata, "VideoStream");
-
     while (av_read_frame(fmt_ctx, &pkt) == 0) {
         AVPacket packet = pkt;
         if (pkt.stream_index == video_index) {
-//            logPacket(&packet, "VIDEO");
+            logPacket(&packet, "VIDEO");
             do {
                 ret = decode_packet(videoContext, frame, &packet, [&videoContext](AVFrame *vFrame) -> void {
                     char index[8];
@@ -76,12 +76,12 @@ int get_info(const char *input_filename) {
                 });
             } while (ret);
         } else {
-            logPacket(&packet, "AUDIO");
+//            logPacket(&packet, "AUDIO");
             do {
                 ret = decode_packet(audioContext, frame, &packet, [&audioContext](AVFrame *aFrame) -> void {
                     char index[8];
                     snprintf(index, 8, "%3d", audioContext->frame_number);
-                    logFrame(aFrame, index, 0);
+//                    logFrame(aFrame, index, 0);
                 });
             } while (ret);
         }

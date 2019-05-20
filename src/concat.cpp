@@ -440,11 +440,25 @@ int concat(const char *output_filename, char **video_files, int nb_videos) {
 
     // Copy Video Stream Configure from base Fragment
     videoCodecContext = avcodec_alloc_context3(videoCodec);
-    ret = avcodec_parameters_to_context(videoCodecContext, baseFragment->videoStream->codecpar);
-    if (ret < 0) return error("Copy Video Context from input stream");
-    videoCodecContext->time_base = AVRational{1, baseFragment->videoStream->avg_frame_rate.num};
-    videoCodecContext->pix_fmt = (AVPixelFormat) baseFragment->videoStream->codecpar->format;
+//    ret = avcodec_parameters_to_context(videoCodecContext, baseFragment->videoStream->codecpar);
+//    if (ret < 0) return error("Copy Video Context from input stream");
+//    videoCodecContext->time_base = AVRational{1, baseFragment->videoStream->avg_frame_rate.num};
+//    videoCodecContext->pix_fmt = (AVPixelFormat) baseFragment->videoStream->codecpar->format;
+//    videoStream->time_base = videoCodecContext->time_base;
+    videoCodecContext->codec_id = baseFragment->videoCodecContext->codec_id;
+    videoCodecContext->width = baseFragment->videoCodecContext->width;
+    videoCodecContext->height = baseFragment->videoCodecContext->height;
+    videoCodecContext->pix_fmt = baseFragment->videoCodecContext->pix_fmt;
+    videoCodecContext->bit_rate = baseFragment->videoCodecContext->bit_rate;
+    videoCodecContext->has_b_frames = baseFragment->videoCodecContext->has_b_frames;
+    videoCodecContext->gop_size = baseFragment->videoCodecContext->gop_size;
+    videoCodecContext->qmin = baseFragment->videoCodecContext->qmin;
+    videoCodecContext->qmax = baseFragment->videoCodecContext->qmax;
+    videoCodecContext->time_base = (AVRational) {baseFragment->videoStream->r_frame_rate.den, baseFragment->videoStream->r_frame_rate.num};
+    videoCodecContext->profile = baseFragment->videoCodecContext->profile;
     videoStream->time_base = videoCodecContext->time_base;
+    if (oFormatContext->oformat->flags & AVFMT_GLOBALHEADER)
+        videoCodecContext->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
     ret = avcodec_open2(videoCodecContext, videoCodec, nullptr);
     if (ret < 0) return error("Open Video output AVCodecContext");
     ret = avcodec_parameters_from_context(videoStream->codecpar, videoCodecContext);
@@ -452,11 +466,20 @@ int concat(const char *output_filename, char **video_files, int nb_videos) {
 
     // Copy Audio Stream Configure from base Fragment
     audioCodecContext = avcodec_alloc_context3(audioCodec);
-    ret = avcodec_parameters_to_context(audioCodecContext, baseFragment->audioStream->codecpar);
-    if (ret < 0) return error("Copy Audio Context from input stream");
-    audioCodecContext->time_base = AVRational{1, baseFragment->audioStream->codecpar->sample_rate};
-    audioCodecContext->sample_fmt = (AVSampleFormat) baseFragment->audioStream->codecpar->format;
+//    ret = avcodec_parameters_to_context(audioCodecContext, baseFragment->audioStream->codecpar);
+//    if (ret < 0) return error("Copy Audio Context from input stream");
+//    audioCodecContext->time_base = AVRational{1, baseFragment->audioStream->codecpar->sample_rate};
+//    audioCodecContext->sample_fmt = (AVSampleFormat) baseFragment->audioStream->codecpar->format;
+//    audioStream->time_base = audioCodecContext->time_base;
+    audioCodecContext->sample_fmt = baseFragment->audioCodecContext->sample_fmt;
+    audioCodecContext->sample_rate = baseFragment->audioCodecContext->sample_rate;
+    audioCodecContext->bit_rate = baseFragment->audioCodecContext->bit_rate;
+    audioCodecContext->channel_layout = baseFragment->audioCodecContext->channel_layout;
+    audioCodecContext->channels = baseFragment->audioCodecContext->channels;
+    audioCodecContext->time_base = (AVRational) {1, audioCodecContext->sample_rate};
     audioStream->time_base = audioCodecContext->time_base;
+    if (oFormatContext->oformat->flags & AVFMT_GLOBALHEADER)
+        audioCodecContext->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
     ret = avcodec_open2(audioCodecContext, audioCodec, nullptr);
     if (ret < 0) return error("Open Audio output AVCodecContext");
     ret = avcodec_parameters_from_context(audioStream->codecpar, audioCodecContext);
@@ -470,9 +493,6 @@ int concat(const char *output_filename, char **video_files, int nb_videos) {
             return -1;
         }
     }
-
-    ret = avformat_write_header(oFormatContext, nullptr);
-    if (ret < 0) return error("write header error");
 
     LOGD("contexts\n");
     logContext(fragments[0]->videoCodecContext, "Frag0", 1);
@@ -492,7 +512,12 @@ int concat(const char *output_filename, char **video_files, int nb_videos) {
     logStream(audioStream, "Result", 0);
     LOGD("\n");
 
-//    av_dump_format(oFormatContext, 0, output_filename, 1);
+
+    ret = avformat_write_header(oFormatContext, nullptr);
+    if (ret < 0) return error("write header error");
+
+
+    av_dump_format(oFormatContext, 0, output_filename, 1);
 
     LOGD("FrameRate:%d/%d\n"
          "Codec: %s\n"
@@ -526,19 +551,6 @@ int concat(const char *output_filename, char **video_files, int nb_videos) {
         uint64_t next_video_dts = 0;
         uint64_t next_audio_pts = 0;
         uint64_t next_audio_dts = 0;
-        if (inVideoStream->start_time != AV_NOPTS_VALUE) {
-            int64_t offset = av_rescale_q(inVideoStream->start_time, videoStream->time_base, inVideoStream->time_base);
-            LOGD("offset video: %ld -> %ld\n", inVideoStream->start_time, offset);
-            last_video_pts -= offset;
-            last_video_dts -= offset;
-        }
-        if (inVideoStream->start_time != AV_NOPTS_VALUE) {
-            int64_t offset = av_rescale_q(inAudioStream->start_time, audioStream->time_base, inAudioStream->time_base);
-            LOGD("offset audio: %ld -> %ld\n", inAudioStream->start_time, offset);
-            last_audio_pts -= offset;
-            last_audio_dts -= offset;
-        }
-        LOGW("Audio-> PTS:%ld DTS%ld Video-> PTS:%ld DTS:%ld\n", last_audio_pts, last_audio_dts, last_video_pts, last_video_dts);
         do {
             ret = av_read_frame(inFormatContext, packet);
             if (ret == AVERROR_EOF) {
@@ -548,8 +560,12 @@ int concat(const char *output_filename, char **video_files, int nb_videos) {
                 LOGE("read fragment error: %s\n", av_err2str(ret));
                 break;
             }
-//            if (packet->dts < 0) continue;
+            if (packet->dts < 0) continue;
             if (packet->stream_index == inVideoStream->index) {
+                if (packet->flags&AV_PKT_FLAG_DISCARD) {
+                    LOGW("\nPacket is discard\n");
+                    continue;
+                }
                 int64_t old_pts = packet->pts;
                 int64_t old_dts = packet->dts;
                 packet->stream_index = videoStream->index;

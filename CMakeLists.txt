@@ -77,7 +77,12 @@ set(SOURCES src/main.cpp
         src/test/filter_audio.cpp
         src/test/filter_audio.h
         src/test/get_info.h
-        src/test/get_info.cpp)
+        src/test/get_info.cpp
+        src/utils/error.cpp
+        src/utils/error.h
+        #src/filter/filter.cpp
+        #src/filter/filter.h
+        )
 
 add_executable(VideoBox ${SOURCES})
 
