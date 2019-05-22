@@ -42,7 +42,7 @@ int main(int argc, char *argv[]) {
         else if (check("mux")) return test_mux(argv[2], argv[3], argv[4], 4);
         else if (check("demuxer")) return test_demuxer(argv[2], argv[3], argv[4]);
         else if (check("concat")) return concat(argv[2], argv[3], &argv[4], 4);
-        else if (check("concat_add_title")) return concat_add_title(argv[2], &argv[3], 3);
+        else if (check("concat_add_title")) return concat_add_title(argv[2], &argv[3], 2);
         else if (check("mux_title")) return mux_title(argv[2], argv[3]);
         else if (check("mix_bgm")) return mix_bgm(argv[2], argv[3], argv[4], 1.2);
         else if (check("x264_encode")) return x264_encode(argv[2], argv[3]);
@@ -60,16 +60,36 @@ int main(int argc, char *argv[]) {
 
             read_yuv(file, frame, frame->width, frame->height, 1, (AVPixelFormat) frame->format);
 
-            blur_filter(frame);
+            VideoFilter filter;
+            VideoConfig inConfig((AVPixelFormat) frame->format, frame->width, frame->height);
+            VideoConfig outConfig((AVPixelFormat) frame->format, frame->width, frame->height);
+            filter.create("gblur=sigma=20:steps=6[blur];[blur]drawtext=fontsize=52:fontcolor=white:text='title':x=w/2-text_w/2:y=h/2-text_h/2", &inConfig, &outConfig);
 
-            for (int i = 0; i < frame->height; i++) {
-                fwrite(frame->data[0] + frame->linesize[0] * i, 1, frame->linesize[0], result);
+            filter.dumpGraph();
+
+
+            AVFrame *dest = av_frame_alloc();
+
+            dest->format = AV_PIX_FMT_YUV420P;
+            dest->width = 1920;
+            dest->height = 1080;
+            av_frame_get_buffer(dest, 0);
+            av_frame_make_writable(dest);
+            int ret = filter.filter(frame, dest);
+            if (ret < 0) {
+                LOGE("unable to filter frame\n");
+                return -1;
             }
-            for (int i = 0; i < frame->height / 2; i++) {
-                fwrite(frame->data[1] + frame->linesize[1] * i, 1, frame->linesize[1], result);
+            filter.destroy();
+
+            for (int i = 0; i < dest->height; i++) {
+                fwrite(dest->data[0] + dest->linesize[0] * i, 1, dest->linesize[0], result);
             }
-            for (int i = 0; i < frame->height / 2; i++) {
-                fwrite(frame->data[2] + frame->linesize[2] * i, 1, frame->linesize[2], result);
+            for (int i = 0; i < dest->height / 2; i++) {
+                fwrite(dest->data[1] + dest->linesize[1] * i, 1, dest->linesize[1], result);
+            }
+            for (int i = 0; i < dest->height / 2; i++) {
+                fwrite(dest->data[2] + dest->linesize[2] * i, 1, dest->linesize[2], result);
             }
 
             fclose(file);
@@ -141,10 +161,11 @@ int main(int argc, char *argv[]) {
         } else if (check("test")) {
             int ret = 0;
             VideoFilter filter;
+            VideoConfig config(AV_PIX_FMT_YUV420P, 1920, 1080);
             ret = filter.create("color=black:200x200[c];"
                                 "[c]setsar,drawtext=fontsize=30:fontcolor=white:text='Hello':x=50:y=50,split[text][alpha];"
                                 "[text][alpha]alphamerge,rotate=angle=-PI/2[rotate];"
-                                "[in][rotate]overlay=x=500:y=500[out]");
+                                "[in][rotate]overlay=x=500:y=500[out]", &config, &config);
 //            ret = filter.init("movie=/mnt/c/users/android1/desktop/mark.png[mark];[in][mark]overlay=100:100");
 //            ret = init_filters("drawgrid=width=100:height=100:thickness=4:color=pink@0.9");
 //            ret = filter.init("[in]drawtext=fontsize=40:fontcolor=red:text='Title'[out]");
@@ -164,29 +185,21 @@ int main(int argc, char *argv[]) {
                 input->format = AV_PIX_FMT_YUV420P;
                 av_frame_get_buffer(input, 0);
                 read_yuv(data, input, input->width, input->height, i, (AVPixelFormat) input->format);
-                ret = av_buffersrc_add_frame(filter.getInputCtx(), input);
-                if (ret < 0) {
-                    LOGE("add input error: %s\n", av_err2str(ret));
-                    return -1;
-                }
-                av_frame_unref(input);
-                do {
-                    AVFrame *output = av_frame_alloc();
-                    output->format = AV_PIX_FMT_YUV420P;
-                    output->width = 1920;
-                    output->height = 1080;
-                    ret = av_buffersink_get_frame(filter.getOutputCtx(), output);
-                    if (ret == 0) {
-                        LOGD("Frame format: %s\n", av_get_pix_fmt_name((AVPixelFormat) output->format));
-                        for (int j = 0; input->linesize[j]; ++j) {
-                            LOGD("Frame buffer %d: %d\n", j, input->linesize[j]);
-                        }
-                        char filename[128];
-                        snprintf(filename, 128, "/mnt/c/Users/android1/Desktop/filtered%d.yuv", i);
-                        save_av_frame(output, filename);
+                AVFrame *output = av_frame_alloc();
+                output->format = AV_PIX_FMT_YUV420P;
+                output->width = 1920;
+                output->height = 1080;
+                filter.filter(input, output);
+                if (ret == 0) {
+                    LOGD("Frame format: %s\n", av_get_pix_fmt_name((AVPixelFormat) output->format));
+                    for (int j = 0; input->linesize[j]; ++j) {
+                        LOGD("Frame buffer %d: %d\n", j, input->linesize[j]);
                     }
-                    av_frame_free(&output);
-                } while (ret == 0);
+                    char filename[128];
+                    snprintf(filename, 128, "/mnt/c/Users/android1/Desktop/filtered%d.yuv", i);
+                    save_av_frame(output, filename);
+                }
+                av_frame_free(&output);
                 av_frame_free(&input);
             }
             return 0;

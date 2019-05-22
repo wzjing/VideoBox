@@ -1,10 +1,6 @@
-//
-// Created by wzjing on 2019/5/19.
-//
 
 #ifndef VIDEOBOX_VIDEO_FILTER_H
 #define VIDEOBOX_VIDEO_FILTER_H
-
 
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -14,6 +10,21 @@ extern "C" {
 #include <libavutil/channel_layout.h>
 #include <libavutil/opt.h>
 }
+
+struct VideoConfig {
+    AVPixelFormat format;
+    int width;
+    int height;
+    AVRational timebase{1, 30};
+    AVRational pixel_aspect{1, 1};
+
+    VideoConfig(AVPixelFormat format, int width, int height, AVRational timebase = {1, 30},
+                AVRational pixel_aspect = {1, 1}) {
+        this->format = format;
+        this->width = width;
+        this->height = height;
+    }
+};
 
 class VideoFilter {
 protected:
@@ -25,11 +36,9 @@ public:
 
     VideoFilter() = default;
 
-    int create(const char *filter_descr);
+    int create(const char *filter_descr, VideoConfig *inConfig, VideoConfig *outConfig);
 
-    AVFilterContext *getInputCtx();
-
-    AVFilterContext *getOutputCtx();
+    int filter(AVFrame *source, AVFrame *dest);
 
     void dumpGraph();
 

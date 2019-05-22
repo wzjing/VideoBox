@@ -2,8 +2,7 @@
 
 #include "../utils/log.h"
 
-
-int VideoFilter::create(const char *filter_descr) {
+int VideoFilter::create(const char *filter_descr, VideoConfig *inConfig, VideoConfig *outConfig) {
     this->description = filter_descr;
     char args[512];
     int ret = 0;
@@ -11,8 +10,7 @@ int VideoFilter::create(const char *filter_descr) {
     const AVFilter *buffersink = avfilter_get_by_name("buffersink");
     AVFilterInOut *outputs = avfilter_inout_alloc();
     AVFilterInOut *inputs = avfilter_inout_alloc();
-    AVRational time_base = {1, 1};
-    enum AVPixelFormat pix_fmts[] = {AV_PIX_FMT_YUV420P, AV_PIX_FMT_NONE};
+    enum AVPixelFormat pix_fmts[] = {outConfig->format, AV_PIX_FMT_NONE};
 
     filter_graph = avfilter_graph_alloc();
     if (!outputs || !inputs || !filter_graph) {
@@ -20,13 +18,11 @@ int VideoFilter::create(const char *filter_descr) {
         goto end;
     }
 
-    /* buffer video source: the decoded frames from the decoder will be inserted here. */
     snprintf(args, sizeof(args),
              "video_size=%dx%d:pix_fmt=%d:time_base=%d/%d:pixel_aspect=%d/%d",
-             1920, 1080, AV_PIX_FMT_YUV420P,
-             time_base.num, time_base.den,
-             16, 9);
-
+             inConfig->width, inConfig->height, inConfig->format,
+             inConfig->timebase.num, inConfig->timebase.den,
+             inConfig->pixel_aspect.num, inConfig->pixel_aspect.num);
     ret = avfilter_graph_create_filter(&buffersrc_ctx, buffersrc, "in",
                                        args, nullptr, filter_graph);
     if (ret < 0) {
@@ -34,7 +30,6 @@ int VideoFilter::create(const char *filter_descr) {
         goto end;
     }
 
-    /* buffer video sink: to terminate the filter chain. */
     ret = avfilter_graph_create_filter(&buffersink_ctx, buffersink, "out",
                                        nullptr, nullptr, filter_graph);
     if (ret < 0) {
@@ -77,12 +72,19 @@ int VideoFilter::create(const char *filter_descr) {
     return ret;
 }
 
-AVFilterContext *VideoFilter::getInputCtx() {
-    return buffersrc_ctx;
-}
+int VideoFilter::filter(AVFrame *source, AVFrame *dest) {
 
-AVFilterContext *VideoFilter::getOutputCtx() {
-    return buffersink_ctx;
+    int ret = av_buffersrc_add_frame_flags(buffersrc_ctx, source, AV_BUFFERSRC_FLAG_KEEP_REF);
+    if (ret < 0) {
+        LOGE("unable to add frame to filter chain\n");
+        return -1;
+    }
+    ret = av_buffersink_get_frame(buffersink_ctx, dest);
+    if (ret < 0) {
+        LOGE("unable to get frame from filter chain\n");
+        return -1;
+    }
+    return 0;
 }
 
 void VideoFilter::dumpGraph() {

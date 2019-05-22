@@ -75,13 +75,6 @@ int AudioFilter::create(const char *filter_descr, AudioConfig* inConfig1, AudioC
         goto end;
     }
 
-//    ret = av_opt_set_int_list(buffersink_ctx, "sample_rates", sample_rates,
-//                              44100, AV_OPT_SEARCH_CHILDREN);
-//    if (ret < 0) {
-//        LOGE("Cannot set output sample format\n");
-//        goto end;
-//    }
-
     inputs[0]->name = av_strdup("in1");
     inputs[0]->filter_ctx = buffersrc1_ctx;
     inputs[0]->pad_idx = 0;
