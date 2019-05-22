@@ -2,8 +2,8 @@
 // Created by android1 on 2019/4/22.
 //
 
-#ifndef VIDEOBOX_CONCAT_H
-#define VIDEOBOX_CONCAT_H
+#ifndef VIDEOBOX_CONCAT_BGM_H
+#define VIDEOBOX_CONCAT_BGM_H
 
 #include "./utils/log.h"
 extern "C" {
@@ -28,4 +28,4 @@ inline int error(const char *message) {
 
 int concat(const char *output_filename, char *bgm_file, char **video_files, int nb_videos);
 
-#endif //VIDEOBOX_CONCAT_H
+#endif //VIDEOBOX_CONCAT_BGM_H

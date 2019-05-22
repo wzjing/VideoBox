@@ -35,8 +35,8 @@ message(STATUS "libs   : ${FFMPEG_STATIC_LIBRARIES}")
 set(SOURCES src/main.cpp
         src/mux_title.cpp
         src/mux_title.h
-        src/concat.cpp
-        src/concat.h
+        src/concat_bgm.cpp
+        src/concat_bgm.h
         src/codec/decode.cpp
         src/codec/decode.h
         src/codec/encode.cpp
@@ -80,9 +80,9 @@ set(SOURCES src/main.cpp
         src/test/get_info.cpp
         src/utils/error.cpp
         src/utils/error.h
-        src/filter/filter.cpp
-        src/filter/filter.h
-        )
+        src/filter/video_filter.cpp
+        src/filter/video_filter.h
+        src/filter/audio_filter.cpp src/filter/audio_filter.h src/mix_bgm.cpp src/mix_bgm.h src/concat_add_title.cpp src/concat_add_title.h)
 
 add_executable(VideoBox ${SOURCES})
 

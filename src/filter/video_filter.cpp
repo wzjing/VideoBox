@@ -1,9 +1,9 @@
-#include "filter.h"
+#include "video_filter.h"
 
 #include "../utils/log.h"
 
 
-int Filter::init(const char *filter_descr) {
+int VideoFilter::create(const char *filter_descr) {
     this->description = filter_descr;
     char args[512];
     int ret = 0;
@@ -77,14 +77,19 @@ int Filter::init(const char *filter_descr) {
     return ret;
 }
 
-AVFilterContext *Filter::getInputCtx() {
+AVFilterContext *VideoFilter::getInputCtx() {
     return buffersrc_ctx;
 }
 
-AVFilterContext *Filter::getOutputCtx() {
+AVFilterContext *VideoFilter::getOutputCtx() {
     return buffersink_ctx;
 }
 
-void Filter::dumpGraph() {
-    LOGD("Filter graph for\"%s\"\n%s\n", this->description, avfilter_graph_dump(filter_graph, nullptr));
+void VideoFilter::dumpGraph() {
+    LOGD("Video Filer(%s):\n%s\n", this->description, avfilter_graph_dump(filter_graph, nullptr));
+}
+
+void VideoFilter::destroy() {
+    if (filter_graph)
+        avfilter_graph_free(&filter_graph);
 }

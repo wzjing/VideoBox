@@ -2,8 +2,8 @@
 // Created by wzjing on 2019/5/19.
 //
 
-#ifndef VIDEOBOX_FILTER_H
-#define VIDEOBOX_FILTER_H
+#ifndef VIDEOBOX_VIDEO_FILTER_H
+#define VIDEOBOX_VIDEO_FILTER_H
 
 
 extern "C" {
@@ -15,7 +15,7 @@ extern "C" {
 #include <libavutil/opt.h>
 }
 
-class Filter {
+class VideoFilter {
 protected:
     AVFilterContext *buffersink_ctx;
     AVFilterContext *buffersrc_ctx;
@@ -23,16 +23,18 @@ protected:
     const char *description = nullptr;
 public:
 
-    Filter() = default;
+    VideoFilter() = default;
 
-    int init(const char *filter_descr);
+    int create(const char *filter_descr);
 
     AVFilterContext *getInputCtx();
 
     AVFilterContext *getOutputCtx();
 
     void dumpGraph();
+
+    void destroy();
 };
 
 
-#endif //VIDEOBOX_FILTER_H
+#endif //VIDEOBOX_VIDEO_FILTER_H

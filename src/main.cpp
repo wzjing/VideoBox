@@ -14,11 +14,14 @@
 #include "test/get_info.h"
 #include "test/test_util.h"
 #include "mux/mux.h"
-#include "concat.h"
+#include "concat_bgm.h"
 #include "filter/blur_filter.h"
 #include "filter/mix_filter.h"
-#include "filter/filter.h"
+#include "filter/video_filter.h"
 #include "mux_title.h"
+#include "filter/audio_filter.h"
+#include "mix_bgm.h"
+#include "concat_add_title.h"
 
 extern "C" {
 #include <libavformat/avformat.h>
@@ -39,7 +42,9 @@ int main(int argc, char *argv[]) {
         else if (check("mux")) return test_mux(argv[2], argv[3], argv[4], 4);
         else if (check("demuxer")) return test_demuxer(argv[2], argv[3], argv[4]);
         else if (check("concat")) return concat(argv[2], argv[3], &argv[4], 4);
+        else if (check("concat_add_title")) return concat_add_title(argv[2], &argv[3], 3);
         else if (check("mux_title")) return mux_title(argv[2], argv[3]);
+        else if (check("mix_bgm")) return mix_bgm(argv[2], argv[3], argv[4], 1.2);
         else if (check("x264_encode")) return x264_encode(argv[2], argv[3]);
         else if (check("filter_blur")) {
             FILE *file = fopen(argv[2], "rb");
@@ -75,9 +80,23 @@ int main(int argc, char *argv[]) {
             FILE *fileB = fopen(argv[3], "rb");
             FILE *result = fopen(argv[4], "wb");
 
-            AudioMixFilter filter(AV_CH_LAYOUT_STEREO, AV_CH_LAYOUT_STEREO, AV_SAMPLE_FMT_FLTP, AV_SAMPLE_FMT_FLTP,
-                                  44100, 44100, 1.6, 0.2);
-            filter.init();
+//            AudioMixFilter filter(AV_CH_LAYOUT_STEREO, AV_CH_LAYOUT_STEREO, AV_SAMPLE_FMT_FLTP, AV_SAMPLE_FMT_FLTP,
+//                                  44100, 44100, 1.6, 0.2);
+//            filter.init();
+
+            AudioFilter filter;
+
+            AudioConfig config{AV_SAMPLE_FMT_FLTP,
+                               44100,
+                               AV_CH_LAYOUT_STEREO,
+                               (AVRational) {1, 2}};
+
+            filter.create("[in1]volume=volume=1.6[out1];[in2]volume=volume=0.4[out2];[out1][out2]amix[out]",
+                          &config,
+                          &config,
+                          &config);
+
+            filter.dumpGraph();
 
             AVFrame *frameA = av_frame_alloc();
             AVFrame *frameB = av_frame_alloc();
@@ -99,7 +118,7 @@ int main(int argc, char *argv[]) {
                 read_pcm(fileA, frameA, frameA->nb_samples, 2, i, (AVSampleFormat) frameA->format);
                 read_pcm(fileB, frameB, frameB->nb_samples, 2, i, (AVSampleFormat) frameB->format);
 
-                filter.filter(frameA, frameB, nullptr);
+                filter.filter(frameA, frameB);
 
                 int sample_size = av_get_bytes_per_sample((AVSampleFormat) frameA->format);
 
@@ -121,11 +140,11 @@ int main(int argc, char *argv[]) {
             return 0;
         } else if (check("test")) {
             int ret = 0;
-            Filter filter;
-            ret = filter.init("color=black:200x200[c];"
-                               "[c]setsar,drawtext=fontsize=30:fontcolor=white:text='Hello':x=50:y=50,split[text][alpha];"
-                               "[text][alpha]alphamerge,rotate=angle=-PI/2[rotate];"
-                               "[in][rotate]overlay=x=500:y=500[out]");
+            VideoFilter filter;
+            ret = filter.create("color=black:200x200[c];"
+                                "[c]setsar,drawtext=fontsize=30:fontcolor=white:text='Hello':x=50:y=50,split[text][alpha];"
+                                "[text][alpha]alphamerge,rotate=angle=-PI/2[rotate];"
+                                "[in][rotate]overlay=x=500:y=500[out]");
 //            ret = filter.init("movie=/mnt/c/users/android1/desktop/mark.png[mark];[in][mark]overlay=100:100");
 //            ret = init_filters("drawgrid=width=100:height=100:thickness=4:color=pink@0.9");
 //            ret = filter.init("[in]drawtext=fontsize=40:fontcolor=red:text='Title'[out]");

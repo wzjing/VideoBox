@@ -1,4 +1,4 @@
-#include "concat.h"
+#include "concat_bgm.h"
 #include "filter/mix_filter.h"
 
 int concat(const char *output_filename, char *bgm_file, char **video_files, int nb_videos) {
