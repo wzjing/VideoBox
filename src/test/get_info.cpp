@@ -22,6 +22,8 @@ int get_info(const char *input_filename) {
         return -1;
     }
 
+    LOGD("format: %s\n", fmt_ctx->iformat->name);
+
     logMetadata(fmt_ctx->metadata, "AVFormatContext");
 
     int video_index = -1;
@@ -74,7 +76,7 @@ int get_info(const char *input_filename) {
                 ret = decode_packet(videoContext, frame, &packet, [&videoContext](AVFrame *vFrame) -> void {
                     char index[8];
                     snprintf(index, 8, "%3d", videoContext->frame_number);
-//                    logFrame(vFrame, index, 1);
+                    logFrame(vFrame, index, 1);
                 });
             } while (ret);
         } else {

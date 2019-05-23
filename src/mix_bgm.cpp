@@ -41,7 +41,7 @@ int openVideoFile(const char *file, AVFormatContext *&formatContext, AVCodecCont
                   AVCodecContext *&videoContext, AVStream *&audioStream, AVStream *&videoStream) {
     int ret = 0;
     ret = avformat_open_input(&formatContext, file, nullptr, nullptr);
-    if (ret < 0) return error(ret, "input format error");
+    if (ret < 0) return error(ret, av_err2str(ret));
     ret = avformat_find_stream_info(formatContext, nullptr);
     if (ret < 0) return error(ret, "input format info error");
 
@@ -89,9 +89,11 @@ int mix_bgm(const char *output_filename, const char *input_filename, const char 
     AVCodec *videoCodec = nullptr;
     AVCodec *audioCodec = nullptr;
 
-    openVideoFile(input_filename, inFmtContext, inAudioContext, inVideoContext, inAudioStream,
+    ret = openVideoFile(input_filename, inFmtContext, inAudioContext, inVideoContext, inAudioStream,
                   inVideoStream);
-    openAudioFile(bgm_filename, bgmFmtContext, bgmAudioContext, bgmAudioStream);
+    if(ret < 0) return ret;
+    ret = openAudioFile(bgm_filename, bgmFmtContext, bgmAudioContext, bgmAudioStream);
+    if(ret < 0) return ret;
 
     // configure output
     ret = avformat_alloc_output_context2(&outFmtContext, nullptr, nullptr, output_filename);

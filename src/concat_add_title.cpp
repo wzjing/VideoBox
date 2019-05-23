@@ -45,8 +45,6 @@ int encode_title(const char *title, AVFormatContext *formatContext,
 
     int sample_size = 0;
 
-    uint64_t first_video = 0;
-    uint64_t first_audio = 0;
     int first_video_set = 0;
     int first_audio_set = 0;
 
@@ -73,22 +71,23 @@ int encode_title(const char *title, AVFormatContext *formatContext,
         memset(srcAudioFrame->data[i], '0', srcAudioFrame->nb_samples * sample_size);
     }
 
-//    logFrame(srcAudioFrame, "src", 0);
-//    logFrame(srcVideoFrame, "src", 1);
-//    logFrame(videoFrame, "dest", 1);
-
-
     while (encode_video || encode_audio) {
         if (!encode_audio || (encode_video && av_compare_ts(video_frame_pts, videoCodecContext->time_base,
                                                             audio_frame_pts, audioCodecContext->time_base) <= 0)) {
             if (av_compare_ts(video_frame_pts, videoCodecContext->time_base,
                               TITLE_DURATION, (AVRational) {1, 1}) > 0) {
                 encode_video = 0;
-//                avcodec_flush_buffers(videoCodecContext);
             } else {
-                av_frame_copy(videoFrame, srcVideoFrame);
-                av_frame_copy_props(videoFrame, srcAudioFrame);
-                videoFrame->pict_type = AV_PICTURE_TYPE_NONE;
+                ret = av_frame_copy(videoFrame, srcVideoFrame);
+                if (ret < 0) LOGW("\tget copy video frame failed\n");
+                ret = av_frame_copy_props(videoFrame, srcAudioFrame);
+                if (ret < 0) LOGW("\tget copy video frame props failed\n");
+                if (!first_video_set) {
+                    videoFrame->pict_type = AV_PICTURE_TYPE_I;
+                    first_video_set = 1;
+                } else {
+                    videoFrame->pict_type = AV_PICTURE_TYPE_NONE;
+                }
                 videoFrame->pts = video_frame_pts;
                 video_frame_pts += 1;
 //                logFrame(videoFrame, "Out", 1);
@@ -103,7 +102,7 @@ int encode_title(const char *title, AVFormatContext *formatContext,
                     packet->dts += video_start_dts;
                     next_video_pts = packet->pts + srcVideoFrame->pkt_duration;
                     next_video_dts = packet->dts + srcVideoFrame->pkt_duration;
-//                    logPacket(packet, "V");
+                    logPacket(packet, "V");
                     ret = av_interleaved_write_frame(formatContext, packet);
                     if (ret < 0) {
                         LOGE("write video frame error: %s\n", av_err2str(ret));
@@ -124,7 +123,6 @@ int encode_title(const char *title, AVFormatContext *formatContext,
             if (av_compare_ts(audio_frame_pts, audioCodecContext->time_base,
                               TITLE_DURATION, (AVRational) {1, 1}) >= 0) {
                 encode_audio = 0;
-//                avcodec_flush_buffers(audioCodecContext);
             } else {
                 audioFrame->format = audioCodecContext->sample_fmt;
                 audioFrame->nb_samples = srcAudioFrame->nb_samples;
@@ -145,16 +143,18 @@ int encode_title(const char *title, AVFormatContext *formatContext,
             while (true) {
                 ret = avcodec_receive_packet(audioCodecContext, packet);
                 if (ret == 0) {
-                    if (packet->pts < 0) continue;
+//                    logPacket(packet, "A");
+                    if (packet->pts == 0) {
+//                        first_audio = packet->pts;
+                        first_audio_set = 1;
+                    }
+//                    if (packet->pts < 0) continue;
+                    if (!first_audio_set) continue;
                     av_packet_rescale_ts(packet, audioCodecContext->time_base, audioStream->time_base);
                     packet->stream_index = audioStream->index;
                     packet->pts += audio_start_pts;
                     packet->dts += audio_start_dts;
-                    if (!first_audio_set) {
-                        first_audio = packet->pts;
-                        first_audio_set = 1;
-                    }
-                    if (packet->pts<first_audio) continue;
+//                    if (packet->pts < first_audio) continue;
 //                    if (packet->pts <= (next_audio_pts - srcAudioFrame->pkt_duration)) continue;
                     next_audio_pts = packet->pts + srcAudioFrame->pkt_duration;
                     next_audio_dts = packet->dts + srcAudioFrame->pkt_duration;
@@ -235,15 +235,21 @@ int concat_add_title(const char *output_filename, char **input_filenames, size_t
             }
             if (videos[i]->videoStream && videos[i]->audioStream) break;
         }
-        LOGD("\n");
-        videos[i]->videoStream ? LOGD("Video/") : LOGD("--/");
-        videos[i]->audioStream ? LOGD("Audio") : LOGD("--");
-        LOGD(": %s\n", input_filenames[i]);
-        LOGD("\n");
+        if (videos[i]->formatContext->iformat->name) {
+
+        }
+        videos[i]->isTsVideo = strcmp(videos[i]->formatContext->iformat->name, "mpegts") == 0;
+
+        LOGD("\n"
+             "%s:\t%s/%s -> %s\n\n",
+             videos[i]->isTsVideo ? "TS" : "--",
+             videos[i]->videoStream ? "Video" : "--",
+             videos[i]->audioStream ? "Audio" : "--",
+             input_filenames[i]);
     }
 
     // create output AVFormatContext
-    ret = avformat_alloc_output_context2(&outFmtContext, nullptr, nullptr, output_filename);
+    ret = avformat_alloc_output_context2(&outFmtContext, nullptr, "mpegts", output_filename);
     if (ret < 0) return error(ret, "output format error");
 
     // Copy codec from input video AVStream
@@ -285,6 +291,9 @@ int concat_add_title(const char *output_filename, char **input_filenames, size_t
     if (ret < 0) return error(ret, "Open Video output AVCodecContext");
     ret = avcodec_parameters_from_context(outVideoStream->codecpar, outVideoContext);
     if (ret < 0) return error(ret, "Copy Video Context to output stream");
+    ret = av_dict_copy(&outVideoStream->metadata, baseVideo->videoStream->metadata, 0);
+    if (ret < 0) LOGW("failed copy metadata: %s\n", av_err2str(ret));
+
 
     // Copy Audio Stream Configure from base Video
     outAudioContext = avcodec_alloc_context3(outAudioCodec);
@@ -298,7 +307,12 @@ int concat_add_title(const char *output_filename, char **input_filenames, size_t
     outAudioContext->flags |= AV_CODEC_FLAG_LOW_DELAY;
     outAudioContext->time_base = (AVRational) {1, outAudioContext->sample_rate};
     outAudioStream->time_base = outAudioContext->time_base;
-    ret = avcodec_open2(outAudioContext, outAudioCodec, nullptr);
+    av_dict_free(&opt);
+    opt = nullptr;
+    if (outVideoContext->codec_id == AV_CODEC_ID_AAC) {
+        av_dict_set(&opt, "profile", "23", 0);
+    }
+    ret = avcodec_open2(outAudioContext, outAudioCodec, &opt);
     if (ret < 0) return error(ret, "Open Audio output AVCodecContext");
     ret = avcodec_parameters_from_context(outAudioStream->codecpar, outAudioContext);
     if (ret < 0) return error(ret, "Copy Audio Context to output stream");
@@ -335,6 +349,40 @@ int concat_add_title(const char *output_filename, char **input_filenames, size_t
         AVStream *inAudioStream = videos[i]->audioStream;
         AVCodecContext *audioContext = videos[i]->audioCodecContext;
         AVCodecContext *videoContext = videos[i]->videoCodecContext;
+        AVBSFContext *bsfContext = nullptr;
+
+        if (!videos[i]->isTsVideo) {
+            // bitstream filter: convert mp4 packet to annexb
+            const AVBitStreamFilter *bsfFilter = av_bsf_get_by_name("h264_mp4toannexb");
+
+            if (!bsfFilter) {
+                LOGE("unable to find bsf tiler\n");
+                return -1;
+            }
+            ret = av_bsf_alloc(bsfFilter, &bsfContext);
+            if (ret < 0) {
+                LOGE("unable to create bsf context");
+                return -1;
+            }
+            ret = avcodec_parameters_from_context(bsfContext->par_in, videoContext);
+            if (ret < 0) {
+                LOGE("unable to copy in parameters to bsf context");
+                return -1;
+            }
+            bsfContext->time_base_in = inVideoStream->time_base;
+            ret = av_bsf_init(bsfContext);
+            if (ret < 0) {
+                LOGE("unable to init bsf context");
+                return -1;
+            }
+
+            if (ret < 0) {
+                LOGE("unable to copy out parameters to bsf context");
+                return -1;
+            }
+            LOGD("bsf timebase: {%d, %d} -> {%d, %d}\n", inVideoStream->time_base.num, inVideoStream->time_base.den,
+                 bsfContext->time_base_out.num, bsfContext->time_base_out.den);
+        }
 
         uint64_t first_video_pts = 0;
         uint64_t first_video_dts = 0;
@@ -391,7 +439,6 @@ int concat_add_title(const char *output_filename, char **input_filenames, size_t
                      outAudioStream, outVideoStream, last_audio_pts, last_audio_dts, last_video_pts, last_video_dts);
 
 
-//        avio_seek(inFormatContext->pb, 0, SEEK_SET);
         av_seek_frame(inFormatContext, inAudioStream->index, 0, 0);
         av_seek_frame(inFormatContext, inVideoStream->index, 0, 0);
 
@@ -411,39 +458,59 @@ int concat_add_title(const char *output_filename, char **input_filenames, size_t
 
             if (packet->dts < 0) continue;
             if (packet->stream_index == inVideoStream->index) {
-                int64_t old_pts = packet->pts;
-                int64_t old_dts = packet->dts;
                 if (packet->flags & AV_PKT_FLAG_DISCARD) {
                     LOGW("\nPacket is discard\n");
                     continue;
                 }
 
-                if (!video_ts_set) {
-                    first_video_pts = packet->pts;
-                    first_video_dts = packet->dts;
-                    video_ts_set = 1;
+                if (!videos[i]->isTsVideo) {
+                    AVPacket *annexPacket = av_packet_alloc();
+                    ret = av_bsf_send_packet(bsfContext, packet);
+                    if (ret < 0) LOGW("unable to convert packet to annexb: %s\n", av_err2str(ret));
+                    ret = av_bsf_receive_packet(bsfContext, annexPacket);
+                    if (ret != 0) LOGW("unable to receive converted annexb packet: %s\n", av_err2str(ret));
+//                    LOGI("\t mp4 to annexb\n");
+                    if (!video_ts_set) {
+                        first_video_pts = annexPacket->pts;
+                        first_video_dts = annexPacket->dts;
+                        video_ts_set = 1;
+                    }
+                    annexPacket->stream_index = outVideoStream->index;
+
+                    annexPacket->pts -= first_video_pts;
+                    annexPacket->dts -= first_video_dts;
+                    av_packet_rescale_ts(annexPacket, bsfContext->time_base_out, outVideoStream->time_base);
+                    annexPacket->pts += last_video_pts;
+                    annexPacket->dts += last_video_dts;
+                    next_video_pts = annexPacket->pts + annexPacket->duration;
+                    next_video_dts = annexPacket->dts + annexPacket->duration;
+
+                    logPacket(annexPacket, "V");
+                    av_interleaved_write_frame(outFmtContext, annexPacket);
+                    av_packet_free(&annexPacket);
+                } else {
+                    if (!video_ts_set) {
+                        first_video_pts = packet->pts;
+                        first_video_dts = packet->dts;
+                        video_ts_set = 1;
+                    }
+
+                    packet->stream_index = outVideoStream->index;
+
+                    packet->pts -= first_video_pts;
+                    packet->dts -= first_video_dts;
+                    av_packet_rescale_ts(packet, inVideoStream->time_base, outVideoStream->time_base);
+                    packet->pts += last_video_pts;
+                    packet->dts += last_video_dts;
+                    next_video_pts = packet->pts + packet->duration;
+                    next_video_dts = packet->dts + packet->duration;
+
+                    logPacket(packet, "V");
+
+                    av_interleaved_write_frame(outFmtContext, packet);
                 }
 
-                packet->stream_index = outVideoStream->index;
-
-                packet->pts -= first_video_pts;
-                packet->dts -= first_video_dts;
-                av_packet_rescale_ts(packet, inVideoStream->time_base, outVideoStream->time_base);
-                packet->pts += last_video_pts;
-                packet->dts += last_video_dts;
-                next_video_pts = packet->pts + packet->duration;
-                next_video_dts = packet->dts + packet->duration;
-//                LOGD("\033[32mVIDEO\033[0m: PTS: %-8ld\tDTS: %-8ld -> PTS: %-8ld\tDTS: %-8ld\tKEY:%s\n",
-//                     old_pts, old_dts,
-//                     packet->pts,
-//                     packet->dts,
-//                     packet->flags & AV_PKT_FLAG_KEY ? "Key" : "--");
-//                logPacket(packet, "V");
-                av_interleaved_write_frame(outFmtContext, packet);
             } else if (packet->stream_index == inAudioStream->index) {
-//                logPacket(packet, "origin");
-                int64_t old_pts = packet->pts;
-                int64_t old_dts = packet->dts;
 
                 packet->stream_index = outAudioStream->index;
 
@@ -459,10 +526,7 @@ int concat_add_title(const char *output_filename, char **input_filenames, size_t
                 packet->dts += last_audio_dts;
                 next_audio_pts = packet->pts + packet->duration;
                 next_audio_dts = packet->dts + packet->duration;
-//                LOGD("\033[32mAudio\033[0m: PTS: %-8ld\tDTS: %-8ld -> PTS: %-8ld\tDTS: %-8ld\n", old_pts, old_dts,
-//                     packet->pts,
-//                     packet->dts);
-                logPacket(packet, "A");
+//                logPacket(packet, "A");
                 av_interleaved_write_frame(outFmtContext, packet);
             }
         } while (true);
@@ -470,6 +534,8 @@ int concat_add_title(const char *output_filename, char **input_filenames, size_t
         last_video_dts = next_video_dts;
         last_audio_pts = next_audio_pts;
         last_audio_dts = next_audio_dts;
+
+        if (!videos[i]->isTsVideo) av_bsf_free(&bsfContext);
 
         LOGD("--------------------------------------------------------------------------------\n");
     }

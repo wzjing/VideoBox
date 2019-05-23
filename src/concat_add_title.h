@@ -11,6 +11,7 @@ struct Video {
     AVStream *audioStream = nullptr;
     AVCodecContext *audioCodecContext = nullptr;
     AVCodecContext *videoCodecContext = nullptr;
+    int isTsVideo = 0;
 
 };
 
