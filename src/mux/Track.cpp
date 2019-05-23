@@ -4,7 +4,7 @@
 
 #include "Track.h"
 
-Track::Track(AVMediaType type, AVCodecID codecId, AVStream *stream, uint streamIdx) :
+Track::Track(AVMediaType type, AVCodecID codecId, AVStream *stream, unsigned int streamIdx) :
         mediaType(type),
         codecId(codecId),
         pStream(stream),
@@ -24,6 +24,6 @@ AVStream *Track::getStream() {
     return this->pStream;
 }
 
-uint Track::getStreamIndex() {
+unsigned int Track::getStreamIndex() {
     return this->streamIdx;
 }

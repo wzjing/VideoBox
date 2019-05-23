@@ -7,11 +7,31 @@ void logPacket(AVPacket *packet, const char *tag) {
     flags[1] = packet->flags & AV_PKT_FLAG_DISCARD ? 'D' : '-';
     char tag_str[20];
     snprintf(tag_str, 20, "[\033[33m%s\033[0m]", tag);
-    LOGD("Packet%-16s->\tstream: %d\tPTS: %8ld\tDTS: %8ld\tDuration: %8ld\tflags:\033[34m%-8s\033[0m\tsize:%8d\tside_data: %s(%d)\n",
+    LOGD("Packet%-16s->\tstream: %d\tPTS: %8lld\tDTS: %8lld\tDuration: %8lld\tflags:\033[34m%-8s\033[0m\tsize:%8d\tside_data: %s(%d)\n",
          tag_str,
          packet->stream_index,
          packet->pts,
          packet->dts,
+         packet->duration,
+         flags,
+         packet->size,
+         packet->side_data ? av_packet_side_data_name(packet->side_data->type) : "none",
+         packet->side_data ? packet->side_data->size : 0);
+}
+
+void logPacket(AVRational *timebase, AVPacket *packet, const char *tag) {
+    char flags[3];
+    flags[0] = packet->flags & AV_PKT_FLAG_KEY ? 'K' : '-';
+    flags[1] = packet->flags & AV_PKT_FLAG_DISCARD ? 'D' : '-';
+    char tag_str[20];
+    snprintf(tag_str, 20, "[\033[33m%s\033[0m]", tag);
+    LOGD("Packet%-16s->\tstream: %d\tPTS: %8lld|%s\tDTS: %8lld|%s\tDuration: %8lld\tflags:\033[34m%-8s\033[0m\tsize:%8d\tside_data: %s(%d)\n",
+         tag_str,
+         packet->stream_index,
+         packet->pts,
+         av_ts2timestr(packet->pts, timebase),
+         packet->dts,
+         av_ts2timestr(packet->dts, timebase),
          packet->duration,
          flags,
          packet->size,

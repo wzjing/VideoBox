@@ -8,4 +8,6 @@ int test_muxer(const char * output_filename, const char * input_video, const cha
 
 int test_mux(const char * output_filename, const char * input_video, const char * input_audio, int64_t duration);
 
+int test_remux(const char * in_filename, const char * out_filename);
+
 #endif // TEST_MUXER_H

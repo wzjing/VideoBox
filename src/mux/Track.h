@@ -14,10 +14,10 @@ protected:
     AVCodec *codec = nullptr;
     AVCodecContext *pCodecContext = nullptr;
     AVStream *pStream = nullptr;
-    uint streamIdx = 0;
+    unsigned int streamIdx = 0;
 public:
 
-    Track(AVMediaType type, AVCodecID codecId, AVStream *stream, uint streamIdx);
+    Track(AVMediaType type, AVCodecID codecId, AVStream *stream, unsigned int streamIdx);
 
     int getType();
 
@@ -25,7 +25,7 @@ public:
 
     AVStream *getStream();
 
-    uint getStreamIndex();
+    unsigned int getStreamIndex();
 };
 
 

@@ -9,7 +9,7 @@
 #include <libavformat/avformat.h>
 
 struct Track {
-    uint *streamId;
+    unsigned int *streamId;
     AVStream *stream;
 };
 

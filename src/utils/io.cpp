@@ -103,7 +103,7 @@ read_pcm_to_raw(FILE *file, uint8_t **data, int nb_samples, int channels, int in
   int sample_size = av_get_bytes_per_sample(sample_fmt);
   switch (sample_fmt) {
     case AV_SAMPLE_FMT_FLTP:
-      fseeko64(file, channels * sample_size * nb_samples * index, SEEK_SET);
+      fseeko(file, channels * sample_size * nb_samples * index, SEEK_SET);
       for (int i = 0; i < nb_samples; ++i) {
         uint8_t buf[sample_size * channels];
         fread(buf, sample_size, channels, file);

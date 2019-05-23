@@ -34,6 +34,8 @@ void logStream(AVStream* stream, const char * tag, int isVideo);
 
 void logPacket(AVPacket *packet, const char *tag);
 
+void logPacket(AVRational *timebase, AVPacket *packet, const char *tag);
+
 void logFrame(AVFrame *frame, const char *tag, int isVideo);
 
 #endif //VIDEOBOX_LOG_H
