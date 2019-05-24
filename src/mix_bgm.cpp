@@ -229,6 +229,8 @@ int mix_bgm(const char *output_filename, const char *input_filename, const char 
         if (packet->stream_index == inVideoStream->index) {
             packet->stream_index = outVideoStream->index;
             av_packet_rescale_ts(packet, inVideoStream->time_base, outVideoStream->time_base);
+            packet->duration = av_rescale_q(packet->duration, inVideoStream->time_base, outVideoStream->time_base);
+            packet->pos = -1;
             logPacket(packet, "video");
             ret = av_interleaved_write_frame(outFmtContext, packet);
             if (ret < 0) {

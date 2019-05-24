@@ -239,6 +239,7 @@ int concat_add_title(const char *output_filename, char **input_filenames, size_t
 
         }
         videos[i]->isTsVideo = strcmp(videos[i]->formatContext->iformat->name, "mpegts") == 0;
+//        videos[i]->isTsVideo = 1;
 
         LOGD("\n"
              "%s:\t%s/%s -> %s\n\n",
@@ -479,7 +480,11 @@ int concat_add_title(const char *output_filename, char **input_filenames, size_t
 
                     annexPacket->pts -= first_video_pts;
                     annexPacket->dts -= first_video_dts;
-                    av_packet_rescale_ts(annexPacket, bsfContext->time_base_out, outVideoStream->time_base);
+//                    av_packet_rescale_ts(annexPacket, bsfContext->time_base_out, outVideoStream->time_base);
+                    annexPacket->pts = av_rescale_q_rnd(annexPacket->pts, bsfContext->time_base_out, outVideoStream->time_base, (AVRounding)(AV_ROUND_INF|AV_ROUND_PASS_MINMAX));
+                    annexPacket->dts = av_rescale_q_rnd(annexPacket->dts, bsfContext->time_base_out, outVideoStream->time_base, (AVRounding)(AV_ROUND_INF|AV_ROUND_PASS_MINMAX));
+                    annexPacket->duration = av_rescale_q(annexPacket->duration, bsfContext->time_base_out, outVideoStream->time_base);
+                    annexPacket->pos = -1;
                     annexPacket->pts += last_video_pts;
                     annexPacket->dts += last_video_dts;
                     next_video_pts = annexPacket->pts + annexPacket->duration;
@@ -499,7 +504,11 @@ int concat_add_title(const char *output_filename, char **input_filenames, size_t
 
                     packet->pts -= first_video_pts;
                     packet->dts -= first_video_dts;
-                    av_packet_rescale_ts(packet, inVideoStream->time_base, outVideoStream->time_base);
+//                    av_packet_rescale_ts(packet, inVideoStream->time_base, outVideoStream->time_base);
+                    packet->pts = av_rescale_q_rnd(packet->pts, inVideoStream->time_base, outVideoStream->time_base, (AVRounding)(AV_ROUND_INF|AV_ROUND_PASS_MINMAX));
+                    packet->dts = av_rescale_q_rnd(packet->dts, inVideoStream->time_base, outVideoStream->time_base, (AVRounding)(AV_ROUND_INF|AV_ROUND_PASS_MINMAX));
+                    packet->duration = av_rescale_q(packet->duration, inVideoStream->time_base, outVideoStream->time_base);
+                    packet->pos = -1;
                     packet->pts += last_video_pts;
                     packet->dts += last_video_dts;
                     next_video_pts = packet->pts + packet->duration;

@@ -22,6 +22,7 @@
 #include "filter/audio_filter.h"
 #include "mix_bgm.h"
 #include "concat_add_title.h"
+#include <regex>
 
 extern "C" {
 #include <libavformat/avformat.h>
@@ -64,7 +65,9 @@ int main(int argc, char *argv[]) {
             VideoFilter filter;
             VideoConfig inConfig((AVPixelFormat) frame->format, frame->width, frame->height);
             VideoConfig outConfig((AVPixelFormat) frame->format, frame->width, frame->height);
-            filter.create("gblur=sigma=20:steps=6[blur];[blur]drawtext=fontsize=52:fontcolor=white:text='title':x=w/2-text_w/2:y=h/2-text_h/2", &inConfig, &outConfig);
+            filter.create(
+                    "gblur=sigma=20:steps=6[blur];[blur]drawtext=fontsize=52:fontcolor=white:text='title':x=w/2-text_w/2:y=h/2-text_h/2",
+                    &inConfig, &outConfig);
 
             filter.dumpGraph();
 
@@ -160,49 +163,15 @@ int main(int argc, char *argv[]) {
 
             return 0;
         } else if (check("test")) {
-            int ret = 0;
-            VideoFilter filter;
-            VideoConfig config(AV_PIX_FMT_YUV420P, 1920, 1080);
-            ret = filter.create("color=black:200x200[c];"
-                                "[c]setsar,drawtext=fontsize=30:fontcolor=white:text='Hello':x=50:y=50,split[text][alpha];"
-                                "[text][alpha]alphamerge,rotate=angle=-PI/2[rotate];"
-                                "[in][rotate]overlay=x=500:y=500[out]", &config, &config);
-//            ret = filter.init("movie=/mnt/c/users/android1/desktop/mark.png[mark];[in][mark]overlay=100:100");
-//            ret = init_filters("drawgrid=width=100:height=100:thickness=4:color=pink@0.9");
-//            ret = filter.init("[in]drawtext=fontsize=40:fontcolor=red:text='Title'[out]");
-//            ret = filter.init(
-//                    "color=white:200x200[canvas];[canvas]drawtext=fontsize=40:fontcolor=red:text='Title'[text];[in][text]overlay=100:100[out]");
-            filter.dumpGraph();
-            if (ret < 0) {
-                LOGE("init failed: %s\n", av_err2str(ret));
-                return ret;
-            }
+            const char * output_filename = "/mnt/0/emulated/Download.d/video.mp4";
 
-            FILE *data = fopen("/mnt/c/Users/android1/Desktop/video.yuv", "rb");
-            for (int i = 0; i < 3; ++i) {
-                AVFrame *input = av_frame_alloc();
-                input->width = 1920;
-                input->height = 1080;
-                input->format = AV_PIX_FMT_YUV420P;
-                av_frame_get_buffer(input, 0);
-                read_yuv(data, input, input->width, input->height, i, (AVPixelFormat) input->format);
-                AVFrame *output = av_frame_alloc();
-                output->format = AV_PIX_FMT_YUV420P;
-                output->width = 1920;
-                output->height = 1080;
-                filter.filter(input, output);
-                if (ret == 0) {
-                    LOGD("Frame format: %s\n", av_get_pix_fmt_name((AVPixelFormat) output->format));
-                    for (int j = 0; input->linesize[j]; ++j) {
-                        LOGD("Frame buffer %d: %d\n", j, input->linesize[j]);
-                    }
-                    char filename[128];
-                    snprintf(filename, 128, "/mnt/c/Users/android1/Desktop/filtered%d.yuv", i);
-                    save_av_frame(output, filename);
-                }
-                av_frame_free(&output);
-                av_frame_free(&input);
-            }
+            std::string cache_filename(output_filename);
+
+            cache_filename = std::regex_replace(cache_filename, std::regex(".[0-9a-zA-Z]+$"), "_cache.ts");
+
+            LOGD("Replaced: %s\n", cache_filename.c_str());
+            LOGD("Origin: %s\n", output_filename);
+
             return 0;
         }
     }
