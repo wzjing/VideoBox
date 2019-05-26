@@ -443,7 +443,7 @@ int concat_add_title(const char *output_filename, char **input_filenames, size_t
         av_seek_frame(inFormatContext, inAudioStream->index, 0, 0);
         av_seek_frame(inFormatContext, inVideoStream->index, 0, 0);
 
-        LOGD("\nlast timestamp: A(%ld/%ld) V(%ld/%ld)\n\n", last_audio_pts, last_audio_dts, last_video_pts,
+        LOGD("\nlast timestamp: A(%lld/%lld) V(%lld/%lld)\n\n", last_audio_pts, last_audio_dts, last_video_pts,
              last_video_dts);
 
         // copy the video file

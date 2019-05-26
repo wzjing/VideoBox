@@ -1,6 +1,7 @@
 #include "get_info.h"
 #include "../utils/log.h"
 #include "../codec/decode.h"
+#include "../utils/snapshot.h"
 
 extern "C" {
 #include <libavformat/avformat.h>
@@ -76,6 +77,8 @@ int get_info(const char *input_filename) {
                 ret = decode_packet(videoContext, frame, &packet, [&videoContext](AVFrame *vFrame) -> void {
                     char index[8];
                     snprintf(index, 8, "%3d", videoContext->frame_number);
+                    save_av_frame(vFrame, "frame.yuv");
+                    return;
 //                    logFrame(vFrame, index, 1);
                 });
             } while (ret);
