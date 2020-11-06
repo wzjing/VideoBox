@@ -22,6 +22,7 @@
 #include "filter/audio_filter.h"
 #include "mix_bgm.h"
 #include "concat_add_title.h"
+#include "rtmp.h"
 #include <regex>
 
 extern "C" {
@@ -48,6 +49,7 @@ int main(int argc, char *argv[]) {
         else if (check("mux_title")) return mux_title(argv[2], argv[3]);
         else if (check("bgm")) return mix_bgm(argv[2], argv[3], argv[4], 1.8);
         else if (check("x264_encode")) return x264_encode(argv[2], argv[3]);
+        else if (check("rtmp")) return play_rtmp(argv[2]);
         else if (check("filter_blur")) {
             FILE *file = fopen(argv[2], "rb");
             FILE *result = fopen(argv[3], "wb");

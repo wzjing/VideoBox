@@ -82,7 +82,7 @@ set(SOURCES src/main.cpp
         src/utils/error.h
         src/filter/video_filter.cpp
         src/filter/video_filter.h
-        src/filter/audio_filter.cpp src/filter/audio_filter.h src/mix_bgm.cpp src/mix_bgm.h src/concat_add_title.cpp src/concat_add_title.h)
+        src/filter/audio_filter.cpp src/filter/audio_filter.h src/mix_bgm.cpp src/mix_bgm.h src/concat_add_title.cpp src/concat_add_title.h src/rtmp.cpp src/rtmp.h)
 
 add_executable(VideoBox ${SOURCES})
 
