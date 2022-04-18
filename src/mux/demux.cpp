@@ -29,7 +29,7 @@ Media *get_media(AVFormatContext *fmt_ctx, enum AVMediaType media_type, AVDictio
 
   if (media->stream_idx >= 0) {
     media->stream = fmt_ctx->streams[media->stream_idx];
-    AVCodec *codec = avcodec_find_decoder(media->stream->codecpar->codec_id);
+    const AVCodec *codec = avcodec_find_decoder(media->stream->codecpar->codec_id);
 
     if (!codec) {
       LOGE("get_media: failed to find codec of stream %d %s",
@@ -98,7 +98,7 @@ Muxer *get_demuxer(const char *filename, AVDictionary *fmt_open_opt, AVDictionar
     media->stream = demuxer->fmt_ctx->streams[i];
     media->media_type = media->stream->codecpar->codec_type;
 
-    AVCodec *codec = avcodec_find_decoder(media->stream->codecpar->codec_id);
+    const AVCodec *codec = avcodec_find_decoder(media->stream->codecpar->codec_id);
 
     if (!codec) {
       LOGE("get_media: failed to find codec of stream %d %s\n",

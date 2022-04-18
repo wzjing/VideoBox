@@ -47,8 +47,8 @@ int get_info(const char *input_filename) {
 
     AVStream *videoStream = fmt_ctx->streams[video_index];
     AVStream *audioStream = fmt_ctx->streams[audio_index];
-    AVCodec *videoCodec = avcodec_find_decoder(videoStream->codecpar->codec_id);
-    AVCodec *audioCodec = avcodec_find_decoder(audioStream->codecpar->codec_id);
+    const AVCodec *videoCodec = avcodec_find_decoder(videoStream->codecpar->codec_id);
+    const AVCodec *audioCodec = avcodec_find_decoder(audioStream->codecpar->codec_id);
     AVCodecContext *videoContext = avcodec_alloc_context3(videoCodec);
     AVCodecContext *audioContext = avcodec_alloc_context3(audioCodec);
 

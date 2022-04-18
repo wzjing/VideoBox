@@ -6,6 +6,7 @@ extern "C" {
 #include <libavformat/avformat.h>
 #include <libavutil/timestamp.h>
 #include <libavutil/avutil.h>
+#include <libavcodec/bsf.h>
 }
 
 #include "concat_add_title.h"
@@ -211,8 +212,8 @@ int concat_add_title(const char *output_filename, char **input_filenames, size_t
     AVStream *outAudioStream = nullptr;
     AVCodecContext *outVideoContext = nullptr;
     AVCodecContext *outAudioContext = nullptr;
-    AVCodec *outVideoCodec = nullptr;
-    AVCodec *outAudioCodec = nullptr;
+    const AVCodec *outVideoCodec;
+    const AVCodec *outAudioCodec;
 
     for (int i = 0; i < nb_inputs; ++i) {
         ret = avformat_open_input(&videos[i]->formatContext, input_filenames[i], nullptr, nullptr);
@@ -222,13 +223,13 @@ int concat_add_title(const char *output_filename, char **input_filenames, size_t
         for (int j = 0; j < videos[i]->formatContext->nb_streams; ++j) {
             if (videos[i]->formatContext->streams[j]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
                 videos[i]->videoStream = videos[i]->formatContext->streams[j];
-                AVCodec *codec = avcodec_find_decoder(videos[i]->videoStream->codecpar->codec_id);
+                const AVCodec *codec = avcodec_find_decoder(videos[i]->videoStream->codecpar->codec_id);
                 videos[i]->videoCodecContext = avcodec_alloc_context3(codec);
                 avcodec_parameters_to_context(videos[i]->videoCodecContext, videos[i]->videoStream->codecpar);
                 avcodec_open2(videos[i]->videoCodecContext, codec, nullptr);
             } else if (videos[i]->formatContext->streams[j]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
                 videos[i]->audioStream = videos[i]->formatContext->streams[j];
-                AVCodec *codec = avcodec_find_decoder(videos[i]->audioStream->codecpar->codec_id);
+                const AVCodec *codec = avcodec_find_decoder(videos[i]->audioStream->codecpar->codec_id);
                 videos[i]->audioCodecContext = avcodec_alloc_context3(codec);
                 avcodec_parameters_to_context(videos[i]->audioCodecContext, videos[i]->audioStream->codecpar);
                 avcodec_open2(videos[i]->audioCodecContext, codec, nullptr);

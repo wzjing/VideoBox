@@ -5,6 +5,8 @@
 #include "mux.h"
 #include "../utils/log.h"
 #include "../codec/encode.h"
+#include <libavformat/avformat.h>
+#include <libavutil/channel_layout.h>
 
 #define DURATION  3
 
@@ -44,7 +46,7 @@ Media *add_media(Muxer *muxer, MediaConfig *config, AVDictionary *codec_opt) {
     int ret;
     int nb_samples = 0;
     Media *media = nullptr;
-    AVCodec *codec = nullptr;
+    const AVCodec *codec;
     AVCodecContext *codec_ctx = nullptr;
     AVStream *stream = nullptr;
     AVFrame *frame = nullptr;

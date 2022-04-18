@@ -3,6 +3,7 @@
 extern "C" {
 #include <libavformat/avformat.h>
 #include <libavutil/avutil.h>
+#include <libavutil/channel_layout.h>
 }
 
 int test_muxer(const char *output_filename, const char *input_video, const char *input_audio) {
@@ -103,8 +104,8 @@ void fillAudioFrame(AVCodecContext *context, AVFrame *frame, FILE *file) {
 int test_mux(const char *output_filename, const char *input_video, const char *input_audio, int64_t duration) {
     mux_duration = duration;
     AVFormatContext *formatContext;
-    AVCodec *videoCodec;
-    AVCodec *audioCodec;
+    const AVCodec *videoCodec;
+    const AVCodec *audioCodec;
     AVCodecContext *videoContext = nullptr;
     AVCodecContext *audioContext = nullptr;
     AVStream *videoStream = nullptr;
@@ -224,7 +225,7 @@ int test_mux(const char *output_filename, const char *input_video, const char *i
 }
 
 int test_remux(const char *in_filename, const char *out_filename) {
-    AVOutputFormat *ofmt = NULL;
+    const AVOutputFormat *ofmt;
     AVFormatContext *ifmt_ctx = NULL, *ofmt_ctx = NULL;
     AVPacket pkt;
     int ret, i;

@@ -19,8 +19,8 @@ int concat(const char *output_filename, char *bgm_file, char **video_files, int 
     AVStream *audioStream = nullptr;
     AVCodecContext *videoCodecContext = nullptr;
     AVCodecContext *audioCodecContext = nullptr;
-    AVCodec *videoCodec = nullptr;
-    AVCodec *audioCodec = nullptr;
+    const AVCodec *videoCodec;
+    const AVCodec *audioCodec;
 
     for (int i = 0; i < nb_videos + 1; ++i) {
         ret = avformat_open_input(&fragments[i]->formatContext, files[i], nullptr, nullptr);
@@ -30,13 +30,13 @@ int concat(const char *output_filename, char *bgm_file, char **video_files, int 
         for (int j = 0; j < fragments[i]->formatContext->nb_streams; ++j) {
             if (fragments[i]->formatContext->streams[j]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
                 fragments[i]->videoStream = fragments[i]->formatContext->streams[j];
-                AVCodec *codec = avcodec_find_decoder(fragments[i]->videoStream->codecpar->codec_id);
+                const AVCodec *codec = avcodec_find_decoder(fragments[i]->videoStream->codecpar->codec_id);
                 fragments[i]->videoCodecContext = avcodec_alloc_context3(codec);
                 avcodec_parameters_to_context(fragments[i]->videoCodecContext, fragments[i]->videoStream->codecpar);
                 avcodec_open2(fragments[i]->videoCodecContext, codec, nullptr);
             } else if (fragments[i]->formatContext->streams[j]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
                 fragments[i]->audioStream = fragments[i]->formatContext->streams[j];
-                AVCodec *codec = avcodec_find_decoder(fragments[i]->audioStream->codecpar->codec_id);
+                const AVCodec *codec = avcodec_find_decoder(fragments[i]->audioStream->codecpar->codec_id);
                 fragments[i]->audioCodecContext = avcodec_alloc_context3(codec);
                 avcodec_parameters_to_context(fragments[i]->audioCodecContext, fragments[i]->audioStream->codecpar);
                 avcodec_open2(fragments[i]->audioCodecContext, codec, nullptr);
@@ -314,7 +314,7 @@ int concat(const char *output_filename, char *bgm_file, char **video_files, int 
 //                    av_packet_rescale_ts(mixPacket, audioCodecContext->time_base, audioStream->time_base);
                     mixPacket->stream_index = audioStream->index;
                     logPacket(mixPacket, "encoded");
-                    LOGD("\033[32mAudio\033[0m: PTS: %-8ld\tDTS: %-8ld -> PTS: %-8ld\tDTS: %-8ld\n", old_pts, old_dts,
+                    LOGD("\033[32mAudio\033[0m: PTS: %-8lld\tDTS: %-8lld -> PTS: %-8lld\tDTS: %-8lld\n", old_pts, old_dts,
                          mixPacket->pts,
                          mixPacket->dts);
                     av_interleaved_write_frame(oFormatContext, mixPacket);

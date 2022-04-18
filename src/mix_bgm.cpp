@@ -24,7 +24,7 @@ int openAudioFile(const char *file, AVFormatContext *&formatContext, AVCodecCont
     for (int j = 0; j < formatContext->nb_streams; ++j) {
         if (formatContext->streams[j]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
             audioStream = formatContext->streams[j];
-            AVCodec *codec = avcodec_find_decoder(audioStream->codecpar->codec_id);
+            const AVCodec *codec = avcodec_find_decoder(audioStream->codecpar->codec_id);
             audioContext = avcodec_alloc_context3(codec);
             avcodec_parameters_to_context(audioContext, audioStream->codecpar);
             avcodec_open2(audioContext, codec, nullptr);
@@ -48,13 +48,13 @@ int openVideoFile(const char *file, AVFormatContext *&formatContext, AVCodecCont
     for (int j = 0; j < formatContext->nb_streams; ++j) {
         if (formatContext->streams[j]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
             videoStream = formatContext->streams[j];
-            AVCodec *codec = avcodec_find_decoder(videoStream->codecpar->codec_id);
+            const AVCodec *codec = avcodec_find_decoder(videoStream->codecpar->codec_id);
             videoContext = avcodec_alloc_context3(codec);
             avcodec_parameters_to_context(videoContext, videoStream->codecpar);
             avcodec_open2(videoContext, codec, nullptr);
         } else if (formatContext->streams[j]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
             audioStream = formatContext->streams[j];
-            AVCodec *codec = avcodec_find_decoder(audioStream->codecpar->codec_id);
+            const AVCodec *codec = avcodec_find_decoder(audioStream->codecpar->codec_id);
             audioContext = avcodec_alloc_context3(codec);
             avcodec_parameters_to_context(audioContext, audioStream->codecpar);
             avcodec_open2(audioContext, codec, nullptr);
@@ -87,7 +87,7 @@ int mix_bgm(const char *output_filename, const char *input_filename, const char 
     AVStream *bgmAudioStream = nullptr;
 
 //    AVCodec *videoCodec = nullptr;
-    AVCodec *audioCodec = nullptr;
+    const AVCodec *audioCodec;
 
     ret = openVideoFile(input_filename, inFmtContext, inAudioContext, inVideoContext, inAudioStream,
                         inVideoStream);

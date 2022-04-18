@@ -11,7 +11,7 @@ class Track {
 protected:
     AVMediaType mediaType = AVMEDIA_TYPE_UNKNOWN;
     AVCodecID codecId = AV_CODEC_ID_NONE;
-    AVCodec *codec = nullptr;
+    const AVCodec *codec;
     AVCodecContext *pCodecContext = nullptr;
     AVStream *pStream = nullptr;
     unsigned int streamIdx = 0;

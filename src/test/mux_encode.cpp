@@ -40,7 +40,7 @@ static int write_frame(AVFormatContext *fmt_ctx, const AVRational *time_base, AV
     return 0;
 }
 
-static void add_stream(struct OutputStream *ost, AVFormatContext *fmt_ctx, AVCodec **codec, enum AVCodecID codec_id) {
+static void add_stream(struct OutputStream *ost, AVFormatContext *fmt_ctx, const AVCodec **codec, enum AVCodecID codec_id) {
 
     LOGD("Add stream: %s\n", avcodec_get_name(codec_id));
 
@@ -158,7 +158,7 @@ static AVFrame *alloc_audio_frame(enum AVSampleFormat sample_fmt,
     return frame;
 }
 
-static void open_video(AVCodec *codec, OutputStream *ost, AVDictionary *opt_arg) {
+static void open_video(const AVCodec *codec, OutputStream *ost, AVDictionary *opt_arg) {
     int ret;
     AVCodecContext *codec_ctx = ost->codec_ctx;
     AVDictionary *opt = nullptr;
@@ -184,7 +184,7 @@ static void open_video(AVCodec *codec, OutputStream *ost, AVDictionary *opt_arg)
     }
 }
 
-static void open_audio(AVCodec *codec, OutputStream *ost, AVDictionary *opt_arg) {
+static void open_audio(const AVCodec *codec, OutputStream *ost, AVDictionary *opt_arg) {
     AVCodecContext *codec_ctx;
     int nb_samples;
     int ret = 0;
@@ -272,7 +272,7 @@ int mux_encode(const char *filename, const char *video_source, const char *audio
     OutputStream video_stream = {}, audio_stream = {};
 //  AVOutputFormat *fmt;
     AVFormatContext *fmt_ctx;
-    AVCodec *video_codec, *audio_codec;
+    const AVCodec *video_codec, *audio_codec;
     int ret = 0;
     int have_video = 0, have_audio = 0;
     int encode_video = 0, encode_audio = 0;

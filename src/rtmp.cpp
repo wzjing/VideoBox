@@ -11,6 +11,7 @@
 extern "C"
 {
 #endif
+#include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavutil/mathematics.h>
 #include <libavutil/time.h>
@@ -23,7 +24,7 @@ extern "C"
 
 int play_rtmp(const char *stream_url) {
     auto start = std::chrono::steady_clock::now();
-    AVOutputFormat *ofmt = NULL;
+    const AVOutputFormat *ofmt;
     //Input AVFormatContext and Output AVFormatContext
     AVFormatContext *ifmt_ctx = NULL, *ofmt_ctx = NULL;
     AVPacket pkt;
@@ -37,7 +38,7 @@ int play_rtmp(const char *stream_url) {
     //out_filename = "receive.mkv";
     out_filename = "/Users/wangzijing/Desktop/receive.flv";
 
-    av_register_all();
+    // av_register_all();
     //Network
     avformat_network_init();
     //Input
@@ -51,7 +52,7 @@ int play_rtmp(const char *stream_url) {
     }
 
     for (i = 0; i < ifmt_ctx->nb_streams; i++)
-        if (ifmt_ctx->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
+        if (ifmt_ctx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
             videoindex = i;
             break;
         }
@@ -70,21 +71,30 @@ int play_rtmp(const char *stream_url) {
     for (i = 0; i < ifmt_ctx->nb_streams; i++) {
         //Create output AVStream according to input AVStream
         AVStream *in_stream = ifmt_ctx->streams[i];
-        AVStream *out_stream = avformat_new_stream(ofmt_ctx, in_stream->codec->codec);
+        const AVCodec *codec_1 = avcodec_find_encoder(in_stream->codecpar->codec_id);
+        AVStream *out_stream = avformat_new_stream(ofmt_ctx, codec_1);
         if (!out_stream) {
             printf("Failed allocating output stream\n");
             ret = AVERROR_UNKNOWN;
             goto end;
         }
         //Copy the settings of AVCodecContext
-        ret = avcodec_copy_context(out_stream->codec, in_stream->codec);
+        const AVCodec *in_codec = avcodec_find_decoder(in_stream->codecpar->codec_id);
+        AVCodecContext *out_codec_ctx = avcodec_alloc_context3(in_codec);
+        ret = avcodec_parameters_to_context(out_codec_ctx, in_stream->codecpar);
+        out_codec_ctx->codec_tag = 0;
+        if (ofmt_ctx->oformat->flags & AVFMT_GLOBALHEADER) {
+            out_codec_ctx->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
+        }
+        ret = avcodec_parameters_from_context(out_stream->codecpar, out_codec_ctx);
+        
         if (ret < 0) {
             printf("Failed to copy context from input to output stream codec context\n");
             goto end;
         }
-        out_stream->codec->codec_tag = 0;
-        if (ofmt_ctx->oformat->flags & AVFMT_GLOBALHEADER)
-            out_stream->codec->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
+        // out_stream->codecpar->codec_tag = 0;
+        // if (ofmt_ctx->oformat->flags & AVFMT_GLOBALHEADER)
+        //     out_stream->codecpar->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
     }
     //Dump Format------------------
     av_dump_format(ofmt_ctx, 0, out_filename, 1);
@@ -143,7 +153,7 @@ int play_rtmp(const char *stream_url) {
             break;
         }
 
-        av_free_packet(&pkt);
+        av_packet_unref(&pkt);
 
     }
 

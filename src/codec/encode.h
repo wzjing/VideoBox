@@ -10,6 +10,8 @@
 
 extern "C" {
 #include <libavcodec/avcodec.h>
+#include <libavformat/avformat.h>
+#include <libavcodec/bsf.h>
 }
 
 typedef const std::function<int(AVPacket *pkt)> &ENCODE_CALLBACK;

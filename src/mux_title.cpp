@@ -54,10 +54,10 @@ int error(const char *message, int ret) {
 int mux_title(const char *input_filename, const char *output_filename) {
     AVFormatContext *inFormatContext = nullptr;
     AVFormatContext *outFormatContext = nullptr;
-    AVCodec *vDecode = nullptr;
-    AVCodec *aDecode = nullptr;
-    AVCodec *vEncode = nullptr;
-    AVCodec *aEncode = nullptr;
+    const AVCodec *vDecode;
+    const AVCodec *aDecode;
+    const AVCodec *vEncode;
+    const AVCodec *aEncode;
     AVCodecContext *vDecodeContext = nullptr;
     AVCodecContext *aDecodeContext = nullptr;
     AVCodecContext *vEncodeContext = nullptr;

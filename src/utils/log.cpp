@@ -87,30 +87,28 @@ void logStream(AVStream *stream, const char *tag, int isVideo) {
              "\ttimebase:     {%d, %d}\n"
              "\tframerate:    {%d, %d}\n"
              "\tdisplay ratio:%d:%d\n"
-             "\tduration: %ld\n"
-             "\tstart:    %ld\n\n",
+             "\tduration: %ld\n\n",
              tag,
              stream->index,
              stream->time_base.num,
              stream->time_base.den,
              stream->r_frame_rate.num,
              stream->r_frame_rate.den,
-             stream->display_aspect_ratio.num,
-             stream->display_aspect_ratio.den,
-             stream->duration,
-             stream->first_dts == AV_NOPTS_VALUE ? -1 : stream->first_dts);
+             stream->sample_aspect_ratio.num,
+             stream->sample_aspect_ratio.den,
+             stream->duration);
+            //  stream->first_pts == AV_NOPTS_VALUE ? -1 : stream->first_dts);
     } else {
         LOGD("\n\033[34mAudio Stream\033[0m(\033[33m%s\033[0m)-:\n"
              "\tindex: %d\n"
              "\ttimebase: {%d, %d}\n"
-             "\tduration: %ld\n"
-             "\tstart:    %ld\n\n",
+             "\tduration: %ld\n\n",
              tag,
              stream->index,
              stream->time_base.num,
              stream->time_base.den,
-             stream->duration,
-             stream->first_dts == AV_NOPTS_VALUE ? -1 : stream->first_dts);
+             stream->duration);
+            //  stream->first_dts == AV_NOPTS_VALUE ? -1 : stream->first_dts);
     }
 }
 
