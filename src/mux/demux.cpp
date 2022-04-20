@@ -137,19 +137,18 @@ Muxer *get_demuxer(const char *filename, AVDictionary *fmt_open_opt, AVDictionar
 }
 
 void demux(Muxer *demuxer, DEMUX_CALLBACK callback) {
-  AVPacket pkt;
-  av_init_packet(&pkt);
-  pkt.size = 0;
-  pkt.data = nullptr;
+  AVPacket *pkt = av_packet_alloc();
+  pkt->size = 0;
+  pkt->data = nullptr;
 
-  while (av_read_frame(demuxer->fmt_ctx, &pkt) == 0) {
-    AVPacket packet = pkt;
+  while (av_read_frame(demuxer->fmt_ctx, pkt) == 0) {
+    AVPacket *packet = pkt;
 // Do something like:
 //    if (pkt.size) {
 //      decode_packet();
 //      ...
 //    }
-    callback(&packet);
-    av_packet_unref(&packet);
+    callback(packet);
+    av_packet_unref(packet);
   }
 }

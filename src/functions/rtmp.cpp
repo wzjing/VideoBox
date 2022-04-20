@@ -19,14 +19,17 @@ extern "C"
 }
 #endif
 
+#include "../utils/log.h"
+
 //'1': Use H.264 Bitstream Filter
 #define USE_H264BSF 0
 
 int play_rtmp(const char *stream_url) {
+
     auto start = std::chrono::steady_clock::now();
     const AVOutputFormat *ofmt;
     //Input AVFormatContext and Output AVFormatContext
-    AVFormatContext *ifmt_ctx = NULL, *ofmt_ctx = NULL;
+    AVFormatContext *ifmt_ctx = nullptr, *ofmt_ctx = nullptr;
     AVPacket pkt;
     const char *in_filename, *out_filename;
     int ret, i;
@@ -36,34 +39,44 @@ int play_rtmp(const char *stream_url) {
     //in_filename  = "rtp://233.233.233.233:6666";
     //out_filename = "receive.ts";
     //out_filename = "receive.mkv";
-    out_filename = "/Users/wangzijing/Desktop/receive.flv";
+    out_filename = "/Users/wzjing/Desktop/receive.flv";
+    LOGD("play_rtmp :: url = %s\n", stream_url);
 
     // av_register_all();
     //Network
     avformat_network_init();
+    LOGD("start open\n");
     //Input
-    if ((ret = avformat_open_input(&ifmt_ctx, in_filename, 0, 0)) < 0) {
-        printf("Could not open input file.");
-        goto end;
-    }
-    if ((ret = avformat_find_stream_info(ifmt_ctx, 0)) < 0) {
-        printf("Failed to retrieve input stream information");
+    if ((ret = avformat_open_input(&ifmt_ctx, in_filename, nullptr, nullptr)) < 0) {
+        LOGE("Could not open input file.\n");
         goto end;
     }
 
+    LOGD("fetching stream info\n");
+
+    if ((ret = avformat_find_stream_info(ifmt_ctx, nullptr)) < 0) {
+        LOGE("Failed to retrieve input stream information\n");
+        goto end;
+    }
+
+    LOGD("seeking video track\n");
+
     for (i = 0; i < ifmt_ctx->nb_streams; i++)
         if (ifmt_ctx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+            LOGD("found video index %i\n", i);
             videoindex = i;
             break;
         }
 
+    if (videoindex < 0) LOGE("unable to find video track\n");
+
     av_dump_format(ifmt_ctx, 0, in_filename, 0);
 
     //Output
-    avformat_alloc_output_context2(&ofmt_ctx, NULL, NULL, out_filename); //RTMP
+    avformat_alloc_output_context2(&ofmt_ctx, nullptr, nullptr, out_filename); //RTMP
 
     if (!ofmt_ctx) {
-        printf("Could not create output context\n");
+        LOGE("Could not create output context\n");
         ret = AVERROR_UNKNOWN;
         goto end;
     }
@@ -74,7 +87,7 @@ int play_rtmp(const char *stream_url) {
         const AVCodec *codec_1 = avcodec_find_encoder(in_stream->codecpar->codec_id);
         AVStream *out_stream = avformat_new_stream(ofmt_ctx, codec_1);
         if (!out_stream) {
-            printf("Failed allocating output stream\n");
+            LOGE("Failed allocating output stream\n");
             ret = AVERROR_UNKNOWN;
             goto end;
         }
@@ -82,6 +95,10 @@ int play_rtmp(const char *stream_url) {
         const AVCodec *in_codec = avcodec_find_decoder(in_stream->codecpar->codec_id);
         AVCodecContext *out_codec_ctx = avcodec_alloc_context3(in_codec);
         ret = avcodec_parameters_to_context(out_codec_ctx, in_stream->codecpar);
+        if (ret != 0) {
+            LOGE("avcodec_parameters_to_context error\n");
+            return -1;
+        }
         out_codec_ctx->codec_tag = 0;
         if (ofmt_ctx->oformat->flags & AVFMT_GLOBALHEADER) {
             out_codec_ctx->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
@@ -102,21 +119,21 @@ int play_rtmp(const char *stream_url) {
     if (!(ofmt->flags & AVFMT_NOFILE)) {
         ret = avio_open(&ofmt_ctx->pb, out_filename, AVIO_FLAG_WRITE);
         if (ret < 0) {
-            printf("Could not open output URL '%s'", out_filename);
+            LOGE("Could not open output URL '%s'", out_filename);
             goto end;
         }
     }
     //Write file header
-    ret = avformat_write_header(ofmt_ctx, NULL);
+    ret = avformat_write_header(ofmt_ctx, nullptr);
     if (ret < 0) {
-        printf("Error occurred when opening output URL\n");
+        LOGE("Error occurred when opening output URL\n");
         goto end;
     }
 
 #if USE_H264BSF
     AVBitStreamFilterContext* h264bsfc =  av_bitstream_filter_init("h264_mp4toannexb");
 #endif
-    while (1) {
+    while (true) {
         AVStream *in_stream, *out_stream;
         //Get an AVPacket
         ret = av_read_frame(ifmt_ctx, &pkt);
@@ -149,7 +166,7 @@ int play_rtmp(const char *stream_url) {
         ret = av_interleaved_write_frame(ofmt_ctx, &pkt);
 
         if (ret < 0) {
-            printf("Error muxing packet\n");
+            LOGE("Error muxing packet\n");
             break;
         }
 
@@ -170,7 +187,7 @@ int play_rtmp(const char *stream_url) {
         avio_close(ofmt_ctx->pb);
     avformat_free_context(ofmt_ctx);
     if (ret < 0 && ret != AVERROR_EOF) {
-        printf("Error occurred.\n");
+        LOGE("Error occurred.\n");
         return -1;
     }
     return 0;

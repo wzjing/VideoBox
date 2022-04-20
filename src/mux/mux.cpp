@@ -5,8 +5,10 @@
 #include "mux.h"
 #include "../utils/log.h"
 #include "../codec/encode.h"
-#include <libavformat/avformat.h>
-#include <libavutil/channel_layout.h>
+extern "C" {
+ #include <libavformat/avformat.h>
+ #include <libavutil/channel_layout.h>
+}
 
 #define DURATION  3
 
@@ -210,7 +212,7 @@ Media *add_media(Muxer *muxer, MediaConfig *config, AVDictionary *codec_opt) {
 
 static void log_packet(AVStream *stream, const AVPacket *pkt) {
     AVRational *time_base = &stream->time_base;
-    LOGD("stream: #%d -> index:%4ld\tpts:%-8s\tpts_time:%-8s\tdts:%-8s\tdts_time:%-8s\tduration:%-8s\tduration_time:%-8s\n",
+    LOGD("stream: #%d -> index:%4lld\tpts:%-8s\tpts_time:%-8s\tdts:%-8s\tdts_time:%-8s\tduration:%-8s\tduration_time:%-8s\n",
          stream->index,
          stream->nb_frames,
          av_ts2str(pkt->pts), av_ts2timestr(pkt->pts, time_base),
@@ -297,7 +299,7 @@ int mux(Muxer *muxer, MUX_CALLBACK callback, AVDictionary *opt) {
                                                                                   audio_media->next_pts,
                                                                                   audio_media->codec_ctx->time_base) <=
                                                                     0)) {
-            LOGD("\033[34mVideo INPUT: %ld\033[0m\n", video_media->next_pts);
+            LOGD("\033[34mVideo INPUT: %lld\033[0m\n", video_media->next_pts);
             if (!video_media->input_eof) {
                 video_media->input_eof = callback(video_media->frame, AVMEDIA_TYPE_VIDEO) || audio_media->input_eof;
                 video_media->frame->pts = video_media->next_pts;
@@ -326,7 +328,7 @@ int mux(Muxer *muxer, MUX_CALLBACK callback, AVDictionary *opt) {
             video_media->output_eof = ret;
         } else {
             if (!audio_media->input_eof) {
-                LOGD("\033[36mAudio INPUT: %ld\033[0m\n", audio_media->next_pts / audio_media->frame->nb_samples);
+                LOGD("\033[36mAudio INPUT: %lld\033[0m\n", audio_media->next_pts / audio_media->frame->nb_samples);
                 audio_media->input_eof = callback(audio_media->frame, AVMEDIA_TYPE_AUDIO) || video_media->input_eof;
                 audio_media->frame->pts = audio_media->next_pts;
                 audio_media->next_pts += audio_media->frame->nb_samples;

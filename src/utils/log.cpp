@@ -7,7 +7,7 @@ void logPacket(AVPacket *packet, const char *tag) {
     flags[1] = packet->flags & AV_PKT_FLAG_DISCARD ? 'D' : '-';
     char tag_str[20];
     snprintf(tag_str, 20, "[\033[33m%s\033[0m]", tag);
-    LOGD("Packet%-16s->\tstream: %d\tPTS: %8lld\tDTS: %8lld\tDuration: %8lld\tflags:\033[34m%-8s\033[0m\tsize:%8d\tside_data: %s(%d)\n",
+    LOGD("Packet%-16s->\tstream: %d\tPTS: %8lld\tDTS: %8lld\tDuration: %8lld\tflags:\033[34m%-8s\033[0m\tsize:%8d\tside_data: %s(%lu)\n",
          tag_str,
          packet->stream_index,
          packet->pts,
@@ -25,7 +25,7 @@ void logPacket(AVRational *timebase, AVPacket *packet, const char *tag) {
     flags[1] = packet->flags & AV_PKT_FLAG_DISCARD ? 'D' : '-';
     char tag_str[20];
     snprintf(tag_str, 20, "[\033[33m%s\033[0m]", tag);
-    LOGD("Packet%-16s->\tstream: %d\tPTS: %8lld|%s\tDTS: %8lld|%s\tDuration: %8lld\tflags:\033[34m%-8s\033[0m\tsize:%8d\tside_data: %s(%d)\n",
+    LOGD("Packet%-16s->\tstream: %d\tPTS: %8lld|%s\tDTS: %8lld|%s\tDuration: %8lld\tflags:\033[34m%-8s\033[0m\tsize:%8d\tside_data: %s(%lu)\n",
          tag_str,
          packet->stream_index,
          packet->pts,
@@ -58,7 +58,7 @@ void logFrame(AVFrame *frame, const char *tag, int isVideo) {
                 type = "\033[33m-\033[0m";
                 break;
         }
-        LOGD("VFrame%-16s->\ttype: video\tPTS: %8ld\tDTS: %8ld\tDuration: %8ld\tpict: %-16s\tfmt:%s\tsize: %dx%d\n",
+        LOGD("VFrame%-16s->\ttype: video\tPTS: %8lld\tDTS: %8lld\tDuration: %8lld\tpict: %-16s\tfmt:%s\tsize: %dx%d\n",
              tag_str,
              frame->pts,
              frame->pkt_dts,
@@ -68,7 +68,7 @@ void logFrame(AVFrame *frame, const char *tag, int isVideo) {
              frame->width,
              frame->height);
     } else {
-        LOGD("AFrame%-16s->\ttype: audio\tPTS: %8ld\tDTS: %8ld\trate: %d\tchannels: %d\tfmt: %s\tsize: %d|%d\n",
+        LOGD("AFrame%-16s->\ttype: audio\tPTS: %8lld\tDTS: %8lld\trate: %d\tchannels: %d\tfmt: %s\tsize: %d|%d\n",
              tag_str,
              frame->pts,
              frame->pkt_dts,
@@ -87,7 +87,7 @@ void logStream(AVStream *stream, const char *tag, int isVideo) {
              "\ttimebase:     {%d, %d}\n"
              "\tframerate:    {%d, %d}\n"
              "\tdisplay ratio:%d:%d\n"
-             "\tduration: %ld\n\n",
+             "\tduration: %lld\n\n",
              tag,
              stream->index,
              stream->time_base.num,
@@ -102,7 +102,7 @@ void logStream(AVStream *stream, const char *tag, int isVideo) {
         LOGD("\n\033[34mAudio Stream\033[0m(\033[33m%s\033[0m)-:\n"
              "\tindex: %d\n"
              "\ttimebase: {%d, %d}\n"
-             "\tduration: %ld\n\n",
+             "\tduration: %lld\n\n",
              tag,
              stream->index,
              stream->time_base.num,
@@ -151,7 +151,7 @@ void logContext(AVCodecContext *context, const char *tag, int isVideo) {
              "\tcodec: %s\n"
              "\tsample:%s\n"
              "\tsample_rate: %d\n"
-             "\tbitrate:  %ld\n"
+             "\tbitrate:  %lld\n"
              "\ttimebase: {%d, %d}\n"
              "\textradata_size: %d\n"
              "\tglobal_header: %s\n\n",

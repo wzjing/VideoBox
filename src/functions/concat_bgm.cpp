@@ -1,5 +1,5 @@
 #include "concat_bgm.h"
-#include "filter/mix_filter.h"
+#include "../filter/mix_filter.h"
 
 int concat(const char *output_filename, char *bgm_file, char **video_files, int nb_videos) {
     int ret = 0;
@@ -222,7 +222,7 @@ int concat(const char *output_filename, char *bgm_file, char **video_files, int 
                 packet->dts += last_video_dts;
                 next_video_pts = packet->pts + packet->duration;
                 next_video_dts = packet->dts + packet->duration;
-                LOGD("\033[32mVIDEO\033[0m: PTS: %-8ld\tDTS: %-8ld -> PTS: %-8ld\tDTS: %-8ld\tKEY:%s\n",
+                LOGD("\033[32mVIDEO\033[0m: PTS: %-8lld\tDTS: %-8lld -> PTS: %-8lld\tDTS: %-8lld\tKEY:%s\n",
                      old_pts, old_dts,
                      packet->pts,
                      packet->dts,
@@ -325,7 +325,7 @@ int concat(const char *output_filename, char *bgm_file, char **video_files, int 
                     LOGE("\tunable to encode audio frame: %s\n", av_err2str(ret));
                     return -1;
                 }
-                LOG("\n");
+                LOGD("\n");
                 av_frame_free(&mixFrame);
             }
         } while (true);

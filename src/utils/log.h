@@ -7,15 +7,14 @@
 
 #include <cstdio>
 
-#define LOG(format, ...) printf(format, ## __VA_ARGS__)
 #ifdef DEBUG
-#define LOGD(format, ...) printf(format, ## __VA_ARGS__)
+#define LOGD(format, ...) printf(format, ##__VA_ARGS__)
 #else
 #define LOGD(format, ...)
 #endif
-#define LOGI(format, ...) printf("\033[34m" format "\033[0m", ## __VA_ARGS__)
-#define LOGW(format, ...) printf("\033[33m" format "\033[0m", ## __VA_ARGS__)
-#define LOGE(format, ...) fprintf(stderr,"\033[31m" format "\033[0m", ## __VA_ARGS__)
+#define LOGI(format, ...) printf("\033[34m" format "\033[0m", ##__VA_ARGS__)
+#define LOGW(format, ...) printf("\033[33m" format "\033[0m", ##__VA_ARGS__)
+#define LOGE(format, ...) fprintf(stderr,"\033[31m" format "\033[0m", ##__VA_ARGS__)
 
 extern "C" {
 #include <libavcodec/avcodec.h>

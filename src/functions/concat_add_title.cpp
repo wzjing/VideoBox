@@ -1,6 +1,6 @@
-#include "./utils/log.h"
-#include "./utils/error.h"
-#include "./filter/video_filter.h"
+#include "../utils/log.h"
+#include "../utils/error.h"
+#include "../filter/video_filter.h"
 
 extern "C" {
 #include <libavformat/avformat.h>

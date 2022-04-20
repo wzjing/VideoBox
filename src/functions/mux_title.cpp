@@ -1,7 +1,7 @@
 #include "mux_title.h"
-#include "utils/log.h"
-#include "utils/snapshot.h"
-#include "filter/blur_filter.h"
+#include "../utils/log.h"
+#include "../utils/snapshot.h"
+#include "../filter/blur_filter.h"
 
 int error(const char *message, int ret) {
     LOGE("%s: %s\n", message, av_err2str(ret));
@@ -265,7 +265,7 @@ int mux_title(const char *input_filename, const char *output_filename) {
     while (encode_video || encode_audio) {
         if (!encode_audio || (encode_video && av_compare_ts(video_pts, vEncodeContext->time_base,
                                                             audio_pts, aEncodeContext->time_base) <= 0)) {
-            LOGD("Video Time: %s(%ld-%d/%d) ratio: %f\n",
+            LOGD("Video Time: %s(%lld-%d/%d) ratio: %f\n",
                  av_ts2timestr(video_pts, &vEncodeContext->time_base),
                  video_pts,
                  vEncodeContext->time_base.num,

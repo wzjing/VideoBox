@@ -5,7 +5,7 @@
 #ifndef VIDEOBOX_MUX_TITLE_H
 #define VIDEOBOX_MUX_TITLE_H
 
-#include "mux/mux_common.h"
+#include "../mux/mux_common.h"
 
 int mux_title(const char *input_filename, const char *output_filename);
 

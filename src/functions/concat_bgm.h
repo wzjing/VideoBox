@@ -5,7 +5,7 @@
 #ifndef VIDEOBOX_CONCAT_BGM_H
 #define VIDEOBOX_CONCAT_BGM_H
 
-#include "./utils/log.h"
+#include "../utils/log.h"
 extern "C" {
 #include <libavformat/avformat.h>
 #include <libavutil/timestamp.h>

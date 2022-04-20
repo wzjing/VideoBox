@@ -3,9 +3,9 @@
 //
 
 #include "mix_bgm.h"
-#include "utils/log.h"
-#include "utils/error.h"
-#include "filter/audio_filter.h"
+#include "../utils/log.h"
+#include "../utils/error.h"
+#include "../filter/audio_filter.h"
 
 extern "C" {
 #include <libavformat/avformat.h>
